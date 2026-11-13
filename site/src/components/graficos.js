@@ -70,7 +70,7 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
       Plot.frame({stroke: "#ddd"}),
       Plot.dot(pontos, {
         x: "alinh_gov", y, fill: rotuloGrupo, r: 3.5,
-        fillOpacity: (d) => (d.grupo == null ? opacidade * 0.4 : opacidade), stroke: "white", strokeWidth: 0.5
+        fillOpacity: {value: (d) => (d.grupo == null ? opacidade * 0.4 : opacidade), scale: null}, stroke: "white", strokeWidth: 0.5
       }),
       Plot.line(trilha, {x: "alinh_gov", y, stroke: "#222", strokeWidth: 1.5, marker: "dot"}),
       // início do rastro; o fim coincide com o ponto destacado
