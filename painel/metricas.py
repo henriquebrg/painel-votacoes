@@ -108,7 +108,14 @@ def _maioria_dos_colegas(votos: pd.DataFrame) -> pd.Series:
 
 
 def marcar_alinhamento(votos, votacoes, orientacoes, aplicavel) -> pd.DataFrame:
-    """votos + data, trimestre e o resultado de cada comparação (governo, partido, maioria da bancada)."""
+    """votos + data, trimestre e o resultado de cada comparação (governo, partido, maioria da bancada).
+
+    seguiu_gov e seguiu_partido aplicam `seguiu` (regra para orientações). seguiu_maioria NÃO usa
+    `seguiu`: a maioria dos colegas não é uma orientação. É True quando a categoria do deputado é igual
+    à categoria mais votada pelos colegas, inclusive quando essa maioria é abstencao ou obstrucao
+    (abstenção é tratada como posição deliberada). None se o deputado não votou sim/nao/abstencao/obstrucao,
+    se há menos de 3 colegas contáveis ou se há empate.
+    """
     m = votos.merge(votacoes[["id_votacao", "data"]], on="id_votacao", how="left")
     m["trimestre"] = m.data.dt.year.astype("Int64").astype(str) + "T" + m.data.dt.quarter.astype("Int64").astype(str)
     m.loc[m.data.isna(), "trimestre"] = None
@@ -128,6 +135,7 @@ def marcar_alinhamento(votos, votacoes, orientacoes, aplicavel) -> pd.DataFrame:
     m["seguiu_partido"] = _seguiu_vetor(m.categoria, m.orient_partido)
 
     maioria = _maioria_dos_colegas(m)
+    # Igualdade de categorias, não `seguiu`: a maioria não é orientação (abstencao da maioria é posição).
     sm = pd.Series(
         np.where(m.categoria.to_numpy(object) == maioria.to_numpy(object), True, False), index=m.index, dtype=object
     )
@@ -158,8 +166,10 @@ def indices(marcado: pd.DataFrame, modo: str) -> pd.DataFrame:
 
     partes = []
     for janela, trims in janelas(base.trimestre.dropna().tolist(), modo).items():
-        g = base[base.trimestre.isin(trims)].groupby("deputado_id", sort=True)
-        ultimo = g[["nome", "partido", "uf"]].last()
+        na_janela = base[base.trimestre.isin(trims)]
+        g = na_janela.groupby("deputado_id", sort=True)
+        # Linha do último voto (não GroupBy.last, que pula valores ausentes coluna a coluna).
+        ultimo = na_janela.groupby("deputado_id").tail(1).set_index("deputado_id")[["nome", "partido", "uf"]]
         r = pd.concat([
             ultimo,
             _indice(g, "seguiu_gov", "gov"),

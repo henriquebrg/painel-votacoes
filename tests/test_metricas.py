@@ -206,3 +206,14 @@ def test_nao_orientacao_ignora_votacoes_fora_do_plenario():
     m = marcar_alinhamento(votos, votacoes, orient, apl)
     pl = nao_orientacao(m, apl, votacoes, "legislatura").iloc[0]
     assert pl.n_votacoes == 1 and pl.n_sem_orientacao == 1
+
+
+def test_maioria_abstencao_e_posicao():
+    votacoes = _votacoes(("v1", "2023-03-01"))
+    votos = _votos(
+        ("v1", "A", "PL", "SP", "abstencao"), ("v1", "B", "PL", "SP", "sim"),
+        ("v1", "2", "PL", "SP", "abstencao"), ("v1", "3", "PL", "SP", "abstencao"), ("v1", "4", "PL", "SP", "abstencao"),
+    )
+    m = marcar_alinhamento(votos, votacoes, _orientacoes(), _aplicavel())
+    assert _dep(m, "A").seguiu_maioria is True
+    assert _dep(m, "B").seguiu_maioria is False
