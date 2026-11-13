@@ -1,0 +1,17 @@
+{
+  "name": "painel-votacoes",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "observable preview",
+    "build": "observable build",
+    "test": "node --test test/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@observablehq/framework": "^1.13.4"
+  }
+}
