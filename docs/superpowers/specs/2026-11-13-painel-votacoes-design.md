@@ -116,6 +116,11 @@ O autor escolheu a **A**, seguindo a recomendação.
   - Se não, vale a orientação do bloco ou da federação a que o partido pertencia.
   - Isso exige uma **tabela que liga cada partido ao seu bloco ou federação em cada período**, junto com a normalização dos nomes de bancada.
 - **Índice alternativo:** "votou com a maioria da própria bancada". Serve de comparação e de reserva quando não houver orientação válida.
+- **Atualização de 13/11/2026 (decisão do autor):** o eixo principal de fidelidade ao partido passa a ser **"votou com a maioria dos outros deputados do próprio partido"**.
+  - Motivo: em 2025, o bloco grande orientou só 26 de 168 votações, e PP, União, PSD, MDB e Republicanos quase nunca orientaram como partido. A cobertura da orientação de liderança caiu para 40% em 2025.
+  - O índice pela orientação de liderança ou bloco continua como visão secundária.
+  - Os grupos e o ranking de desgarrados usam o índice da maioria da bancada.
+  - Novo indicador: **taxa de votações em que cada partido não orientou**, ao longo do tempo, como evidência para a narrativa.
 - **Margem de erro:** intervalo de Wilson a 95%, mais um número mínimo de votos para o deputado aparecer nos rankings.
 - **Recorte de tempo:** trimestres (até 16 na legislatura).
 

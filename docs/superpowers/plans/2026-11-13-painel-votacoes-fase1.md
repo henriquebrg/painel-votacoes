@@ -32,6 +32,7 @@
   - Otherwise → aligned only when the vote matches the orientation (Sim = Sim, Não = Não, Obstrução = Obstrução).
 - **Party alignment:** compared against the deputy's party **on the date of the vote**.
 - **Margin of error:** Wilson interval at 95% (z = 1.96).
+- **Party axis (user decision 2026-11-13):** the primary party index is **`alinh_maioria`** (voted with the majority of the *other* deputies of the same party in that votação). The leader/bloc-orientation index `alinh_par` is the secondary view. Reason: in 2025 the big bloc and the centrão parties left most orientations blank (coverage 2025 = 0.40), so `alinh_par` is not comparable across years. Groups, ranking and the default chart axis all use `alinh_maioria`.
 - **Ranking minimum:** a deputy needs 30 counted votes in the window to enter the ranking.
 - **Time windows:**
   - `movel` (default): the 4 calendar quarters ending at the selected quarter.
@@ -245,8 +246,7 @@ Each test builds DataFrames of 1–3 rows by hand and asserts the exact `orienta
   - If the API does not return blocs that have ended, or their dates, complete them by hand. Use the distinct bancadas starting with `"BL "` found in the 2023–2026 orientations, and their first and last appearance dates, as evidence. Write the source in `observacao`.
 - [ ] **Step 6: Measure real coverage.**
   - Run `uv run python -c` with the real 2023–2026 files, downloaded with `baixar_todos` into `data/raw/`, and print `cobertura` per year.
-  - Expected: ≥ 0.90 in every year.
-  - **If any year comes in below 0.90, stop and report** the uncovered bancadas to the user before going on. The party index would not be reliable.
+  - Done (2023 .98, 2024 .95, 2025 .40, 2026 .87). The user decided the party axis is `alinh_maioria`; coverage is now informational only.
 - [ ] **Step 7: Commit.** `git add painel/orientacao_partido.py scripts data/curado tests && git commit -m "feat: orientação aplicável por partido via blocos e federações"`
 
 ---
@@ -266,7 +266,8 @@ Each test builds DataFrames of 1–3 rows by hand and asserts the exact `orienta
   - `marcar_alinhamento(votos, votacoes, orientacoes, aplicavel) -> pd.DataFrame`. It is the votos DataFrame plus `data, trimestre, orient_gov, seguiu_gov, orient_partido, seguiu_partido, seguiu_maioria`.
     - The government orientation is the bancada `"GOVERNO"`.
     - `seguiu_maioria` compares with the most common vote among the **other** deputies of the same party in that votação, counting only sim/nao/abstencao/obstrucao. It needs ≥ 3 colleagues; on a tie it is `None`.
-  - `indices(marcado, modo) -> pd.DataFrame`, with columns `janela, modo, deputado_id, nome, partido, uf, regiao, n_gov, alinh_gov, ic_gov_inf, ic_gov_sup, n_par, alinh_par, ic_par_inf, ic_par_sup, n_maioria, alinh_maioria, n_artigo17, n_branco`.
+  - `indices(marcado, modo) -> pd.DataFrame`, with columns `janela, modo, deputado_id, nome, partido, uf, regiao, n_gov, alinh_gov, ic_gov_inf, ic_gov_sup, n_par, alinh_par, ic_par_inf, ic_par_sup, n_maioria, alinh_maioria, ic_maioria_inf, ic_maioria_sup, n_artigo17, n_branco`.
+  - `nao_orientacao(marcado, aplicavel, votacoes, modo) -> pd.DataFrame`, with columns `janela, modo, partido, n_votacoes, n_sem_orientacao, taxa_sem_orientacao`. Base: Plenário votações with a government orientation (Sim/Não/Obstrução) in which the party had ≥ 1 deputy voting. "Sem orientação" means `aplicavel.orientacao` is None for that (votação, party). "Liberado" counts as oriented.
     - `partido` is the party in the deputy's last vote in the window.
     - `alinh_*` is `NaN` when `n_* == 0`.
 
@@ -295,6 +296,7 @@ def test_maioria_exclui_o_proprio(): ...       # 3 colleagues vote "nao", the de
 def test_indices_poucos_votos(): ...           # deputy with 2 counted votes → n_gov == 2 and ic_gov_sup - ic_gov_inf > 0.5
 def test_troca_de_partido_na_janela(): ...     # PL vote in T1, PSD vote in T2: each compared with its own party; partido == "PSD"
 def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not enter n_gov
+def test_nao_orientacao(): ...                 # party with 4 votações, 3 with orientacao None → taxa_sem_orientacao == 0.75; liberado counts as oriented
 ```
 
 - [ ] **Step 2: Run the tests.** Command: `uv run pytest tests/test_metricas.py -v`. Expected: FAIL.
@@ -315,11 +317,11 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
 - Produces:
   - `@dataclass ModeloGrupos: centros: list[tuple[float, float]]; rotulos: list[str]; k: int; bic: dict[int, float]`
   - `ajustar_grupos(ind_legislatura, k: int | None = 3, k_max: int = 5, n_min: int = 30, seed: int = 0) -> ModeloGrupos`
-    - It uses `GaussianMixture(covariance_type="full")` on `(alinh_gov, alinh_par)` of the deputies with `n_gov >= n_min` and `n_par >= n_min`.
+    - It uses `GaussianMixture(covariance_type="full")` on `(alinh_gov, alinh_maioria)` of the deputies with `n_gov >= n_min` and `n_maioria >= n_min`.
     - `bic` is always computed for k = 2..k_max, so it can be shown on Metodologia.
     - `k=None` picks the k with the lowest BIC.
     - Labels: the centers are sorted by `alinh_gov` from highest to lowest. With k=3 the labels are "Base", "Independentes", "Oposição". With other k, the first is "Base", the last is "Oposição" and the middle ones are "Intermediário 1..".
-  - `atribuir(modelo, ind) -> pd.DataFrame`. It is `ind` plus `grupo` (the label of the nearest center, Euclidean) and `dist_centro`. Rows with `alinh_gov` or `alinh_par` at `NaN` get `grupo = None`.
+  - `atribuir(modelo, ind) -> pd.DataFrame`. It is `ind` plus `grupo` (the label of the nearest center, Euclidean) and `dist_centro`. Rows with `alinh_gov` or `alinh_maioria` at `NaN` get `grupo = None`.
 
 - [ ] **Step 1: Write the failing tests.**
   - `test_tres_nuvens_rotuladas`: a synthetic sample of 3 clouds, around (0.95, 0.95), (0.55, 0.7) and (0.2, 0.95), 50 points each, seed 0. The labels come out in that order, the centers are within 0.05 of the means, and `set(bic) == {2, 3, 4, 5}`.
@@ -367,12 +369,12 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
 - Consumes: `indices` (Task 4).
 - Produces: `classificar(ind, n_min: int = 30) -> pd.DataFrame`. It is `ind` plus three columns:
   - `direcao`: `"rumo ao governo"` if `alinh_gov` > the median `alinh_gov` of the party in the same window, otherwise `"rumo à oposição"`. `None` if `alinh_gov` is NaN.
-  - `elegivel_ranking`: `n_par >= n_min`.
-  - `posicao_ranking`: among the eligible deputies in each window, ordered by `ic_par_sup` ascending, so first comes whoever is *most certainly* far from the party. Ties are broken by `alinh_par`. `NaN` for those not eligible.
+  - `elegivel_ranking`: `n_maioria >= n_min`.
+  - `posicao_ranking`: among the eligible deputies in each window, ordered by `ic_maioria_sup` ascending, so first comes whoever is *most certainly* far from the party. Ties are broken by `alinh_maioria`. `NaN` for those not eligible.
 
 - [ ] **Step 1: Write the failing tests.**
   - `test_direcao_por_mediana_do_partido`
-  - `test_ranking_exclui_n_baixo`: a deputy with `n_par = 29` and `alinh_par = 0.1` has no position.
+  - `test_ranking_exclui_n_baixo`: a deputy with `n_maioria = 29` and `alinh_maioria = 0.1` has no position.
   - `test_ranking_usa_limite_superior`: A with (alinh 0.40, n 200) comes before B with (alinh 0.35, n 31), because B's interval is wider.
 - [ ] **Step 2: Run the tests.** Expected: FAIL.
 - [ ] **Step 3: Implement `painel/desgarrados.py`.**
@@ -398,11 +400,11 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
   - `checar_referencia(marcado, ref: pd.DataFrame, tolerancia_pp: float = 5.0) -> list[str]`.
     - The CSV columns are `fonte,url,metodo,deputado_id,nome,inicio,fim,alinhamento_governo`.
     - It recomputes `alinh_gov` for the exact period of each row and returns an error for every difference greater than 5 percentage points that does not have `metodo` marked `"diferente"`.
-  - `exportar(saida: Path, ind: pd.DataFrame, modelo: ModeloGrupos, mapa: pd.DataFrame, variancia: dict, meta: dict) -> None`.
-    - It writes `indices.json` (records; floats rounded to 4 places), `grupos.json` (`centros, rotulos, k, bic`), `mapa.json` (`{posicoes: [...], variancia: {...}}`) and `meta.json`.
+  - `exportar(saida: Path, ind: pd.DataFrame, modelo: ModeloGrupos, mapa: pd.DataFrame, variancia: dict, sem_orientacao: pd.DataFrame, meta: dict) -> None`.
+    - It writes `indices.json` (records; floats rounded to 4 places), `grupos.json` (`centros, rotulos, k, bic`), `mapa.json` (`{posicoes: [...], variancia: {...}}`), `sem_orientacao.json` (records from `nao_orientacao`, modes `movel` and `trimestre`) and `meta.json`.
     - `meta.json` has the keys `atualizado_em` (ISO, America/Sao_Paulo), `fonte`, `anos`, `n_votacoes_plenario`, `n_votacoes_com_orientacao_governo`, `cobertura_orientacao_partido` (per year) and `janelas` (ordered list).
   - `main(argv: list[str] | None = None) -> int` in `painel/cli.py`, run as `python -m painel.cli [--anos 2023 2024 2025 2026 2027] [--raw data/raw] [--saida site/src/data] [--sem-download]`.
-    - Steps: download → load → orientation → marking → indices (`movel`, `trimestre`, `legislatura`) → groups (fitted on `legislatura`, assigned to all) → map (`movel` windows) → stray-deputies ranking → validations → export.
+    - Steps: download → load → orientation → marking → indices (`movel`, `trimestre`, `legislatura`) → groups (fitted on `legislatura`, assigned to all) → map (`movel` windows) → stray-deputies ranking → `nao_orientacao` (`movel`, `trimestre`) → validations → export.
     - Any validation error prints the messages and returns 1 **before** export.
 
 - [ ] **Step 1: Write the failing tests.**
@@ -410,7 +412,7 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
   - `test_sanidade_pt_baixo_falha`
   - `test_referencia_tolerancia`: 4 pp passes, 6 pp fails, and 6 pp with `metodo="diferente"` passes.
   - `test_cli_falha_sem_publicar`: `main([... "--sem-download"])` with a raw folder whose placar was corrupted returns 1, and `saida/` stays empty.
-  - `test_exportar_arquivos`: the 4 files exist and `meta.json` has every listed key.
+  - `test_exportar_arquivos`: the 5 files exist and `meta.json` has every listed key.
 - [ ] **Step 2: Run the tests.** Expected: FAIL.
 - [ ] **Step 3: Implement `validacao.py`, `exportar.py` and `cli.py`.**
 - [ ] **Step 4: Build `data/referencia/externa.csv`.**
@@ -421,7 +423,7 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
 - [ ] **Step 6: Run the pipeline end to end on the real data.** Command: `uv run python -m painel.cli`. Expected:
   - exit 0;
   - `site/src/data/*.json` is written;
-  - the `meta.json` coverage is ≥ 0.90.
+  - `meta.json` reports the per-year coverage (informational; no threshold).
 
   Also open `indices.json` and check that, in the 2025T4 moving window, João Carlos Bacelar (PL-BA) has `alinh_maioria` < 0.45 and `alinh_gov` > 0.8. This is a sanity check against the 2025 sketch, which used the bancada majority.
 - [ ] **Step 7: Commit.** `git add painel tests data/referencia && git commit -m "feat: validações bloqueantes, exportação e CLI do pipeline"`. Do not version `site/src/data/`: add it to `.gitignore`.
@@ -447,7 +449,7 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
 - [ ] **Step 5: Write `metodologia.md` in plain language.** It has these sections:
   1. Which votes count (Plenário, roll call).
   2. The alignment rule, with the table from Global Constraints, abstention as divergence, and Artigo 17/blank as a separate category.
-  3. Party orientation through blocs and federations, with the coverage read from `meta.json`.
+  3. The party axis: why it is "voted with the majority of the party's other deputies" (in 2025 the big bloc and the centrão parties left most orientations blank), and the leader/bloc-orientation index as the secondary view, with the coverage per year read from `meta.json`.
   4. The 12-month moving window and why it is used.
   5. The margin of error (Wilson), with the 30-vote minimum.
   6. Groups: GMM on the whole legislature, with the BIC table read from `grupos.json`.
@@ -471,12 +473,12 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
 **Interfaces:**
 - Consumes: `indices.json`, `grupos.json` and `meta.json` (Task 8).
 - Produces (in `estado.js`):
-  - `ESTADO_PADRAO = {modo:"movel", janela:null, ufs:[], regioes:[], partidos:[], grupos:[], deputado:null, eixoPartido:"orientacao"}`. `janela: null` means the last window in `meta.janelas`, and `eixoPartido` is `"orientacao"` or `"maioria"`.
+  - `ESTADO_PADRAO = {modo:"movel", janela:null, ufs:[], regioes:[], partidos:[], grupos:[], deputado:null, eixoPartido:"maioria"}`. `janela: null` means the last window in `meta.janelas`, and `eixoPartido` is `"orientacao"` or `"maioria"`.
   - `lerEstado(search: string) -> Estado` and `escreverEstado(e: Estado) -> string`. Query parameters: `m, j, uf, rg, p, g, d, ep`; lists are comma-separated and default values are omitted.
   - `filtrar(rows, e) -> rows`, by modo, janela, uf, regiao, partido and grupo. An empty list means no filter.
-  - `rastro(rows, deputadoId, modo, ateJanela, janelasOrdem) -> Array<{janela, alinh_gov, alinh_par}>`.
+  - `rastro(rows, deputadoId, modo, ateJanela, janelasOrdem) -> Array<{janela, alinh_gov, alinh_maioria, alinh_par}>`.
 - Produces (in `graficos.js`): `dispersao(rows, {grupos, rastro, eixoPartido, destaque, width}) -> SVGElement`.
-  - Observable Plot: x is `alinh_gov` and y is `alinh_par` (or `alinh_maioria`), both 0–100%. Color comes from `grupo`; centers are drawn as black rings with the label.
+  - Observable Plot: x is `alinh_gov` and y is `alinh_maioria` (default) or `alinh_par` when `eixoPartido == "orientacao"`, both 0–100%. Color comes from `grupo`; centers are drawn as black rings with the label.
   - The tooltip shows name (party-UF), government %, party % and n.
   - The trail is a line with dots for the selected deputy.
 
@@ -506,16 +508,17 @@ def test_artigo17_contado_a_parte(): ...       # n_artigo17 == 1 and it does not
 
 **Interfaces:**
 - Consumes:
-  - `mapa.json`, and `indices.json` with `direcao`, `elegivel_ranking` and `posicao_ranking` (Tasks 6–8).
+  - `mapa.json`, `sem_orientacao.json`, and `indices.json` with `direcao`, `elegivel_ranking` and `posicao_ranking` (Tasks 6–8).
   - `filtrar` and `Estado` (Task 10).
 - Produces:
+  - `semOrientacao(rows, {partidos, width}) -> SVGElement`: lines of `taxa_sem_orientacao` (0–100%) per party over the windows of the current `modo`, from `sem_orientacao.json`. Default parties: PT, PL, PP, UNIÃO, PSD, MDB, REPUBLICANOS. Title: "Com que frequência cada partido deixou de orientar".
   - `mapaPosicoes(posicoes, rows, {destaque, width}) -> SVGElement`. Color is by party, using the fixed palette `{PT:"#c0392b", PL:"#1f4e9e", "UNIÃO":"#17a2b8", PSD:"#e67e22", MDB:"#27ae60", PP:"#8e44ad", REPUBLICANOS:"#2c3e50", PSOL:"#f1c40f", NOVO:"#ff7f50"}`; other parties are `#bbb`. The axes are labeled "Dimensão 1 (governo ↔ oposição)" and "Dimensão 2", and the explained variance appears in the caption.
   - `rankingDesgarrados(rows, {limite = 20, direcao = "todas"}) -> HTMLElement`. It is a table with name (party-UF), a party-fidelity bar with the interval range, the interval in text, government % and direction. It uses only `elegivel_ranking` rows, sorted by `posicao_ranking`, and has a "rumo ao governo" / "rumo à oposição" / "todas" filter.
   - Clicking a row or a point sets `estado.deputado`, which is the same highlight as the two-axis chart.
 
 - [ ] **Step 1: Write the failing test in `test/estado.test.js`.** `ordenarRanking(rows, "rumo ao governo")` returns only that direction, in order of `posicao_ranking`. Export `ordenarRanking` from `estado.js`.
 - [ ] **Step 2: Run the test.** Command: `npm test`. Expected: FAIL.
-- [ ] **Step 3: Implement `ordenarRanking`, `mapaPosicoes` and `rankingDesgarrados`, and place them below the main chart in `index.md`.**
+- [ ] **Step 3: Implement `ordenarRanking`, `mapaPosicoes`, `rankingDesgarrados` and `semOrientacao`, and place them below the main chart in `index.md`.**
 - [ ] **Step 4: Check the site.** Commands: `npm test && npm run build`, then `npm run dev`. In 2025T4, confirm that PT is on the left of the map, and that the ranking shows both directions with the interval range.
 - [ ] **Step 5: Commit.** `git commit -m "feat: mapa de posições e ranking de desgarrados no Explorar"` (after `git add`).
 
