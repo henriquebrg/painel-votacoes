@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {ESTADO_PADRAO, lerEstado, escreverEstado, filtrar, rastro} from "../src/components/estado.js";
+import {ESTADO_PADRAO, lerEstado, escreverEstado, filtrar, rastro, ordenarRanking} from "../src/components/estado.js";
 
 const UFS_NORDESTE = new Set(["AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"]);
 
@@ -78,4 +78,25 @@ test("rastro devolve as janelas em ordem e para em ateJanela", () => {
   ]);
   assert.deepEqual(rastro(linhas, "1", "movel", null, ordem).map((x) => x.janela), ["2025T2", "2025T3", "2025T4", "2026T1"]);
   assert.deepEqual(rastro(linhas, "2", "movel", "2025T3", ordem), []);
+});
+
+const candidato = (deputado_id, direcao, posicao_ranking, elegivel_ranking = true) =>
+  ({deputado_id, direcao, posicao_ranking, elegivel_ranking});
+const candidatos = [
+  candidato("a", "rumo à oposição", 3),
+  candidato("b", "rumo ao governo", 4),
+  candidato("c", "rumo ao governo", 1),
+  candidato("d", "rumo à oposição", 2),
+  candidato("e", "rumo ao governo", null, false),
+  candidato("f", null, null, false)
+];
+
+test("ordenarRanking filtra a direção e ordena por posicao_ranking", () => {
+  assert.deepEqual(ordenarRanking(candidatos, "rumo ao governo").map((r) => r.deputado_id), ["c", "b"]);
+  assert.deepEqual(ordenarRanking(candidatos, "rumo à oposição").map((r) => r.deputado_id), ["d", "a"]);
+});
+
+test("ordenarRanking com 'todas' traz só os elegíveis, das duas direções, em ordem", () => {
+  assert.deepEqual(ordenarRanking(candidatos, "todas").map((r) => r.deputado_id), ["c", "d", "a", "b"]);
+  assert.deepEqual(ordenarRanking(candidatos).map((r) => r.deputado_id), ["c", "d", "a", "b"]);
 });

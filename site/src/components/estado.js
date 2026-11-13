@@ -60,3 +60,13 @@ export function rastro(rows, deputadoId, modo, ateJanela, janelasOrdem) {
     .sort((a, b) => posicao.get(a.janela) - posicao.get(b.janela))
     .map(({janela, alinh_gov, alinh_maioria, alinh_par}) => ({janela, alinh_gov, alinh_maioria, alinh_par}));
 }
+
+export const DIRECOES = ["todas", "rumo ao governo", "rumo à oposição"];
+
+// Só deputados elegíveis ao ranking, na ordem de posicao_ranking (1 = mais desgarrado).
+export function ordenarRanking(rows, direcao = "todas") {
+  return rows
+    .filter((r) => r.elegivel_ranking && r.posicao_ranking != null
+      && (direcao === "todas" || r.direcao === direcao))
+    .sort((a, b) => a.posicao_ranking - b.posicao_ranking);
+}

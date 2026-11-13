@@ -8,13 +8,15 @@ toc: false
 <p class="lead">Cada ponto é um deputado: o quanto ele vota com o governo (eixo horizontal) e com a própria bancada (eixo vertical), nas votações nominais do Plenário da Câmara.</p>
 
 ```js
-import {lerEstado, escreverEstado, filtrar, rastro} from "./components/estado.js";
-import {dispersao, CORES_GRUPO, COR_SEM_GRUPO, ROTULO_EIXO_PARTIDO, pct} from "./components/graficos.js";
+import {lerEstado, escreverEstado, filtrar, rastro, DIRECOES} from "./components/estado.js";
+import {dispersao, mapaPosicoes, rankingDesgarrados, semOrientacao, CORES_GRUPO, COR_SEM_GRUPO, ROTULO_EIXO_PARTIDO, pct} from "./components/graficos.js";
 ```
 
 ```js
 const meta = FileAttachment("data/meta.json").json();
 const grupos = FileAttachment("data/grupos.json").json();
+const mapa = FileAttachment("data/mapa.json").json();
+const semOrientacaoRows = FileAttachment("data/sem_orientacao.json").json();
 // FileAttachment exige nomes literais: um arquivo por modo, carregado só quando o modo é ativado.
 const ARQUIVOS_INDICES = {
   movel: FileAttachment("data/indices-movel.json"),
@@ -145,6 +147,53 @@ copiar.onclick = async () => {
 </div>
 
 ```js
+// O mapa só existe para janelas móveis: no trimestre usa a janela móvel que termina nele;
+// na legislatura, a última janela móvel com mapa.
+const janelasMapa = [...new Set(mapa.posicoes.map((p) => p.janela))].sort();
+const janelaMapa = legislatura ? janelasMapa.at(-1) : janela;
+const posicoesMapa = mapa.posicoes.filter((p) => p.janela === janelaMapa);
+const notaMapa = posicoesMapa.length === 0
+  ? `Sem mapa de posições para ${formatarJanela(janelaMapa)}.`
+  : modo === "trimestre"
+    ? `O mapa usa a janela móvel de 4 trimestres até ${formatarJanela(janelaMapa)}; um trimestre sozinho tem poucas votações.`
+    : legislatura
+      ? `O mapa usa a última janela móvel (4 trimestres até ${formatarJanela(janelaMapa)}).`
+      : null;
+// Sem orientação: a série do modo atual; na legislatura, a série móvel.
+const modoSemOrientacao = legislatura ? "movel" : modo;
+const serieSemOrientacao = semOrientacaoRows.filter((r) => r.modo === modoSemOrientacao);
+```
+
+```js
+// Célula própria: o filtro de direção não volta a "todas" quando a janela muda.
+const direcaoInput = Inputs.radio(DIRECOES, {label: "Direção", value: "todas"});
+const direcao = Generators.input(direcaoInput);
+```
+
+<div class="grid grid-cols-2 explorar">
+  <div class="card">
+    <h2>Mapa de posições</h2>
+    <p class="dica">Deputados que votam de forma parecida ficam perto. Cor pelo partido.</p>
+    ${posicoesMapa.length ? resize((width) => {
+      const g = mapaPosicoes(posicoesMapa, visiveis, {destaque: deputado, variancia: mapa.variancia[janelaMapa], width});
+      g.addEventListener("click", () => g.value && selecionar(g.value.deputado_id));
+      return g;
+    }) : ""}
+    ${notaMapa ? html`<p class="nota">${notaMapa}</p>` : ""}
+  </div>
+  <div class="card">${resize((width) => semOrientacao(serieSemOrientacao, {janela: legislatura ? null : janela, width}))}
+    ${legislatura ? html`<p class="nota">Na legislatura inteira, a série mostra as janelas móveis de 4 trimestres.</p>` : ""}
+  </div>
+</div>
+
+<div class="card ranking-card">
+  <h2>Desgarrados: quem mais se afasta da própria bancada</h2>
+  <p class="dica">Fidelidade = parcela das votações em que o deputado votou com a maioria dos colegas de partido. A barra cinza é o intervalo de 95%; só entram deputados com ao menos 30 votações contadas. Clique numa linha para destacar o deputado.</p>
+  ${direcaoInput}
+  ${rankingDesgarrados(visiveis, {limite: 20, direcao, destaque: deputado, aoSelecionar: selecionar})}
+</div>
+
+```js
 function linhaIndice(rotulo, valor, inf, sup, n) {
   return html`<tr><th scope="row">${rotulo}</th><td class="valor">${pct(valor)}</td>
     <td class="ic">${valor == null ? "—" : `${pct(inf)} a ${pct(sup)}`}</td><td class="n">${(n ?? 0).toLocaleString("pt-BR")}</td></tr>`;
@@ -185,7 +234,7 @@ function painelDeputado() {
         ${linhaIndice("Orientação do partido", r.alinh_par, r.ic_par_inf, r.ic_par_sup, r.n_par)}
       </tbody>
     </table>
-    <p class="fora">Fora da conta: ${r.n_artigo17.toLocaleString("pt-BR")} votos “Artigo 17” e ${r.n_branco.toLocaleString("pt-BR")} em branco.</p>
+    <p class="fora">Fora da conta: ${(r.n_artigo17 ?? 0).toLocaleString("pt-BR")} votos “Artigo 17” e ${(r.n_branco ?? 0).toLocaleString("pt-BR")} em branco.</p>
     ${trilha.length > 1 ? html`<p class="dica">A linha no gráfico mostra o caminho de ${formatarJanela(trilha[0].janela)} a ${formatarJanela(trilha.at(-1).janela)}.</p>` : ""}
     ${limpar}`;
 }
@@ -219,4 +268,15 @@ function painelDeputado() {
 .indices .valor { font-weight: 600; }
 .indices .ic, .indices .n { color: var(--theme-foreground-muted); }
 .painel-deputado select { width: 100%; margin-top: 0.5rem; }
+.explorar + .explorar, .ranking-card { margin-top: 1rem; }
+.explorar h2, .ranking-card h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+.dica { color: var(--theme-foreground-muted); font-size: 0.85rem; }
+.ranking { width: 100%; font-size: 0.85rem; font-variant-numeric: tabular-nums; max-width: none; }
+.ranking td { vertical-align: middle; }
+.ranking td svg { vertical-align: middle; }
+.ranking tbody tr { cursor: pointer; }
+.ranking tbody tr:hover { background: var(--theme-background-alt); }
+.ranking tr.selecionado { background: var(--theme-background-alt); outline: 2px solid #111; }
+.ranking .sub, .ranking .ic, .ranking .n { color: var(--theme-foreground-muted); }
+.ranking .valor { font-weight: 600; }
 </style>
