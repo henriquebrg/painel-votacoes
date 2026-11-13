@@ -19,6 +19,7 @@ from painel.validacao import (
     checar_placar,
     checar_referencia,
     checar_sanidade,
+    ids_nominais_plenario,
     marcar_regra_radar,
 )
 
@@ -60,6 +61,12 @@ def _ler_referencia() -> pd.DataFrame:
     return pd.read_csv(CAMINHO_REFERENCIA, dtype=str, keep_default_na=False, encoding="utf-8")
 
 
+def _cobertura_ou_nulo(aplicavel, votos) -> float | None:
+    """Cobertura arredondada; None (null no JSON) quando o ano não tem votos que entrem na conta."""
+    c = cobertura(aplicavel, votos)
+    return None if pd.isna(c) else round(c, 4)
+
+
 def _meta(votacoes, orientacoes, votos, aplicavel, marcado) -> dict:
     gov = orientacoes[(orientacoes.bancada == BANCADA_GOVERNO) & orientacoes.orientacao.isin(ORIENTACOES_VALIDAS)]
     ano_votacao = dict(zip(votacoes.id_votacao, votacoes.data.dt.year))
@@ -68,10 +75,10 @@ def _meta(votacoes, orientacoes, votos, aplicavel, marcado) -> dict:
     anos = sorted(int(a) for a in votacoes.data.dt.year.unique())
     return {
         "anos": anos,
-        "n_votacoes_plenario": int(len(votacoes)),
+        "n_votacoes_plenario": len(ids_nominais_plenario(votos, votacoes)),
         "n_votacoes_com_orientacao_governo": int(gov.id_votacao.nunique()),
         "cobertura_orientacao_partido": {
-            str(a): round(cobertura(aplicavel[ano_aplicavel == a], votos[ano_voto == a]), 4) for a in anos
+            str(a): _cobertura_ou_nulo(aplicavel[ano_aplicavel == a], votos[ano_voto == a]) for a in anos
         },
         "janelas": list(janelas(marcado.trimestre.dropna().tolist(), "movel")),
     }
@@ -87,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
     except (DownloadFalhou, ArquivoAusente) as exc:
         print(f"ERRO: {exc}")
         return 1
+    try:
+        blocos = carregar_tabela_blocos(CAMINHO_BLOCOS)
+    except ValueError as exc:
+        print(f"ERRO em {CAMINHO_BLOCOS.name}: {exc}")
+        return 1
 
     # Todos os órgãos na legislatura: só para a checagem pela regra do Radar. O resto usa só o Plenário.
     votacoes_todas = carregar_votacoes(arquivos["votacoes"])
@@ -99,9 +111,10 @@ def main(argv: list[str] | None = None) -> int:
     plenario = set(votacoes.id_votacao)
     votos = votos_todos[votos_todos.id_votacao.isin(plenario)].reset_index(drop=True)
     orientacoes = orientacoes_todas[orientacoes_todas.id_votacao.isin(plenario)].reset_index(drop=True)
-    print(f"{len(votacoes)} votações do Plenário, {len(votos)} votos")
+    print(f"{len(votacoes)} votações do Plenário ({len(ids_nominais_plenario(votos, votacoes))} nominais), "
+          f"{len(votos)} votos")
 
-    aplicavel = orientacao_aplicavel(orientacoes, votacoes, votos, carregar_tabela_blocos(CAMINHO_BLOCOS))
+    aplicavel = orientacao_aplicavel(orientacoes, votacoes, votos, blocos)
     marcado = marcar_alinhamento(votos, votacoes, orientacoes, aplicavel)
     por_modo = {modo: indices(marcado, modo) for modo in MODOS}
 

@@ -22,15 +22,21 @@ class ValidacaoFalhou(Exception):
     pass
 
 
+def ids_nominais_plenario(votos, votacoes) -> set:
+    """ids das votações nominais do Plenário: placar oficial sim+não não nulo ou ao menos um voto registrado."""
+    plen = votacoes[votacoes.sigla_orgao == "PLEN"]
+    nominal = (plen.votos_sim + plen.votos_nao > 0) | plen.id_votacao.isin(votos.id_votacao)
+    return set(plen.id_votacao[nominal])
+
+
 def checar_placar(votos, votacoes, tolerancia: float = 0.02) -> list[str]:
     """Compara, em cada votação nominal do Plenário, as contagens sim/não dos votos com votos_sim/votos_nao.
 
-    Nominal = placar oficial não nulo ou ao menos um voto registrado. As simbólicas (0/0, sem votos)
-    ficam fora do denominador para não diluir a tolerância.
+    Nominal: ver `ids_nominais_plenario`. As simbólicas (0/0, sem votos) ficam fora do denominador
+    para não diluir a tolerância.
     """
     plen = votacoes[votacoes.sigla_orgao == "PLEN"].set_index("id_votacao")[["votos_sim", "votos_nao"]]
-    nominal = (plen.votos_sim + plen.votos_nao > 0) | plen.index.isin(votos.id_votacao)
-    plen = plen[nominal]
+    plen = plen[plen.index.isin(ids_nominais_plenario(votos, votacoes))]
     if plen.empty:
         return []
     sn = votos[votos.categoria.isin(["sim", "nao"])]

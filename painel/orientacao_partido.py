@@ -11,9 +11,18 @@ CATEGORIAS_BASE = {"sim", "nao", "abstencao", "obstrucao"}
 PREFIXO_FEDERACAO = "FDR "
 
 
+COLUNAS_OBRIGATORIAS = ["bancada_prefixo", "partido", "inicio", "observacao"]
+
+
 def carregar_tabela_blocos(path: Path) -> pd.DataFrame:
+    """Lê blocos.csv; ValueError se uma linha tiver bancada_prefixo, partido, inicio ou observacao vazio."""
     df = pd.read_csv(path, dtype=str, keep_default_na=False, encoding="utf-8")
     df = df[COLUNAS_BLOCOS].copy()
+    for i, linha in df.iterrows():
+        vazias = [c for c in COLUNAS_OBRIGATORIAS if not linha[c].strip()]
+        if vazias:
+            # linha do arquivo: +1 do cabeçalho, +1 por começar em 1
+            raise ValueError(f"{path}, linha {i + 2}: campo(s) vazio(s) {', '.join(vazias)}")
     df["bancada_prefixo"] = df["bancada_prefixo"].map(normalizar_sigla)
     df["partido"] = df["partido"].map(normalizar_sigla)
     df["inicio"] = pd.to_datetime(df["inicio"])

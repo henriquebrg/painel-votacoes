@@ -29,3 +29,8 @@ def test_baixar_json_invalido_falha(tmp_path):
         with pytest.raises(DownloadFalhou):
             baixar("votacoes", 2025, tmp_path, obter=lambda u, c=corpo: (200, c))
     assert not (tmp_path / "votacoes-2025.json").exists()
+
+
+def test_baixar_2027_vazio_retorna_none(tmp_path):
+    assert baixar("votacoes", 2027, tmp_path, obter=lambda u: (200, b'{"dados":[]}')) is None
+    assert not (tmp_path / "votacoes-2027.json").exists()

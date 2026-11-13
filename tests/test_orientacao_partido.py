@@ -46,6 +46,24 @@ def _linha(aplicavel, id_votacao, partido):
     return sel.iloc[0]
 
 
+@pytest.mark.parametrize("coluna", ["bancada_prefixo", "partido", "inicio", "observacao"])
+def test_carregar_tabela_blocos_rejeita_campo_vazio(tmp_path, coluna):
+    linhas = CSV_BLOCOS.splitlines()
+    cab = linhas[0].split(",")
+    campos = linhas[3].split(",")
+    campos[cab.index(coluna)] = " "
+    linhas[3] = ",".join(campos)
+    p = tmp_path / "blocos.csv"
+    p.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=rf"linha 4.*{coluna}"):
+        carregar_tabela_blocos(p)
+
+
+def test_blocos_curado_valido():
+    from painel.cli import CAMINHO_BLOCOS
+    assert len(carregar_tabela_blocos(CAMINHO_BLOCOS)) > 0
+
+
 def test_carregar_tabela_blocos_normaliza(blocos):
     assert list(blocos.columns) == ["bancada_prefixo", "partido", "inicio", "fim", "observacao"]
     assert blocos.bancada_prefixo.iloc[0] == "BL UNIPPPSD"

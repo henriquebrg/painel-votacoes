@@ -37,13 +37,15 @@ def _obter_http(url: str) -> tuple[int, bytes]:
     raise DownloadFalhou(f"falha ao baixar {url}: {ultimo}")
 
 
-def _validar(corpo: bytes, url: str) -> None:
+def _dados(corpo: bytes, url: str) -> list:
+    """A lista `dados` do JSON; falha se o JSON for inválido ou `dados` não for lista."""
     try:
         dados = json.loads(corpo).get("dados")
     except (ValueError, AttributeError) as exc:
         raise DownloadFalhou(f"JSON inválido em {url}: {exc}") from exc
-    if not isinstance(dados, list) or not dados:
-        raise DownloadFalhou(f"'dados' ausente ou vazio em {url}")
+    if not isinstance(dados, list):
+        raise DownloadFalhou(f"'dados' ausente em {url}")
+    return dados
 
 
 def baixar(
@@ -54,7 +56,7 @@ def baixar(
 ) -> Path | None:
     """Baixa `{tipo}-{ano}.json` para `destino`, de forma atômica.
 
-    Retorna None apenas em 404 quando ano == 2027 (arquivo ainda não publicado).
+    Retorna None apenas quando ano == 2027 e o arquivo ainda não existe (404) ou veio com `dados` vazio.
     """
     obter = obter or _obter_http
     url = f"{URL_BASE}/{tipo}/json/{tipo}-{ano}.json"
@@ -63,7 +65,10 @@ def baixar(
         return None
     if status != 200:
         raise DownloadFalhou(f"HTTP {status} em {url}")
-    _validar(corpo, url)
+    if not _dados(corpo, url):
+        if ano == ANO_OPCIONAL:
+            return None
+        raise DownloadFalhou(f"'dados' vazio em {url}")
     destino = Path(destino)
     destino.mkdir(parents=True, exist_ok=True)
     final = destino / f"{tipo}-{ano}.json"
