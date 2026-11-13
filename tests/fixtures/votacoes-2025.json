@@ -1,0 +1,81 @@
+{
+ "dados": [
+  {
+   "id": "2358548-90",
+   "uri": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "data": "2025-12-09",
+   "dataHoraRegistro": "2025-12-10T03:09:21",
+   "idOrgao": 180,
+   "uriOrgao": "https://dadosabertos.camara.leg.br/api/v2/orgaos/180",
+   "siglaOrgao": "PLEN",
+   "idEvento": 80746,
+   "uriEvento": "https://dadosabertos.camara.leg.br/api/v2/eventos/80746",
+   "votosSim": 4,
+   "votosNao": 1,
+   "votosOutros": 5,
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "ultimaAberturaVotacao": {
+    "dataHoraRegistro": "2025-12-10T02:55:54",
+    "descricao": "Votação do DTQ 5 (Fdr PT-PCdoB-PV): Destaque para Votação em Separado do § 9° do Art. 126 da Lei 7.210/1984 constante do art. 1° do substitutivo, apresentado ao PL 2162/2023. (161, I)"
+   },
+   "ultimaApresentacaoProposicao": {
+    "dataHoraRegistro": "2025-12-10T01:47:29",
+    "descricao": "Parecer às Emendas de Plenário proferido pelo Relator, Dep. Paulinho da Força (SOLIDARI-SP) pela:\r\n• Comissão Especial, que conclui pela inconstitucionalidade e injuridicidade das Emendas de Plenário nºs 1 e 2; e, no mérito, pela rejeição.",
+    "idProposicao": 2594772,
+    "uriProposicao": "https://dadosabertos.camara.leg.br/api/v2/proposicoes/2594772"
+   }
+  },
+  {
+   "id": "2494086-7",
+   "uri": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "data": "2025-04-02",
+   "dataHoraRegistro": "2025-04-02T17:01:43",
+   "idOrgao": 180,
+   "uriOrgao": "https://dadosabertos.camara.leg.br/api/v2/orgaos/180",
+   "siglaOrgao": "PLEN",
+   "idEvento": 75779,
+   "uriEvento": "https://dadosabertos.camara.leg.br/api/v2/eventos/75779",
+   "aprovacao": 1,
+   "votosSim": 6,
+   "votosNao": 2,
+   "votosOutros": 2,
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "ultimaAberturaVotacao": {
+    "dataHoraRegistro": "",
+    "descricao": ""
+   },
+   "ultimaApresentacaoProposicao": {
+    "dataHoraRegistro": "",
+    "descricao": "",
+    "idProposicao": 0,
+    "uriProposicao": ""
+   }
+  },
+  {
+   "id": "1302214-101",
+   "uri": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "data": "2025-11-18",
+   "dataHoraRegistro": "2025-11-18T17:03:31",
+   "idOrgao": 2003,
+   "uriOrgao": "https://dadosabertos.camara.leg.br/api/v2/orgaos/2003",
+   "siglaOrgao": "CCJC",
+   "idEvento": 80331,
+   "uriEvento": "https://dadosabertos.camara.leg.br/api/v2/eventos/80331",
+   "aprovacao": 0,
+   "votosSim": 2,
+   "votosNao": 4,
+   "votosOutros": 0,
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "ultimaAberturaVotacao": {
+    "dataHoraRegistro": "2025-11-18T16:58:36",
+    "descricao": "Votação nominal, de ofício, do Requerimento de Retirada de Pauta, de autoria das Deputadas Fernanda Melchionna e Erika Hilton, subscrito pelo Deputado Patrus Ananias."
+   },
+   "ultimaApresentacaoProposicao": {
+    "dataHoraRegistro": "2025-11-11T14:08:23",
+    "descricao": "Parecer do Relator, Dep. Pr. Marco Feliciano (PL-SP), pela constitucionalidade, juridicidade, técnica legislativa e, no mérito, pela aprovação deste e dos Projetos de Lei nºs 6.793/2017, 8.854/2017, 9.048/2017, 2.544/2019, 1.058/2022, 4.110/2023, 4.112/2023, 4.382/2023, 5.822/2023, 8.941/2017, 9.398/2017, 4.152/2019, 5.496/2019, 164/2022, 441/2022, 496/2022, 927/2022, 932/2022, 3.803/2023, 5.222/2023, 6.117/2023, 1.579/2019, 5.304/2019, 5.313/2023, 1.276/2019, 342/2021, 3.721/2021, 172/2022, 2.665/2023, 2.265/2019, 5.256/2019, 4.753/2023, 1.034/2024, 10/2025, 402/2025, 999/2022 e 4.739/2025, apensados, com substitutivo.",
+    "idProposicao": 2583684,
+    "uriProposicao": "https://dadosabertos.camara.leg.br/api/v2/proposicoes/2583684"
+   }
+  }
+ ]
+}

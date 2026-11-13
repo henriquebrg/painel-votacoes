@@ -1,0 +1,256 @@
+{
+ "dados": [
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "PL",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/37906",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Bl UniPpPsd...",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Fdr PT-PCdoB-PV",
+   "uriBancada": "",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Governo",
+   "uriBancada": "",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "PSB",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/36832",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Minoria",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Maioria",
+   "uriBancada": "",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Novo",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/37901",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "PDT",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/36786",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Bl AvanSolidPrd...",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Oposição",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2358548-90",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Fdr PSOL-REDE",
+   "uriBancada": "",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "1302214-101",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "siglaOrgao": "CCJC",
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "siglaBancada": "Minoria",
+   "uriBancada": "",
+   "orientacao": "Não"
+  },
+  {
+   "idVotacao": "1302214-101",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "siglaOrgao": "CCJC",
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "siglaBancada": "Oposição",
+   "uriBancada": "",
+   "orientacao": "Não"
+  },
+  {
+   "idVotacao": "1302214-101",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "siglaOrgao": "CCJC",
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "siglaBancada": "UNIÃO",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/38009",
+   "orientacao": "Não"
+  },
+  {
+   "idVotacao": "1302214-101",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "siglaOrgao": "CCJC",
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "siglaBancada": "PL",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/37906",
+   "orientacao": "Não"
+  },
+  {
+   "idVotacao": "1302214-101",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "siglaOrgao": "CCJC",
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "siglaBancada": "Fdr PT-PCdoB-PV",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "1302214-101",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/1302214-101",
+   "siglaOrgao": "CCJC",
+   "descricao": "Rejeitado o Requerimento de Retirada de Pauta. Resultado:  12 votos \"Sim\", 24 votos \"Não\". Quórum de votação: 36 votos.",
+   "siglaBancada": "PSB",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/36832",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Minoria",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Maioria",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Oposição",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Fdr PSOL-REDE",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Governo",
+   "uriBancada": "",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Bl PlFdrPTUniPp...",
+   "uriBancada": "",
+   "orientacao": ""
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Novo",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/37901",
+   "orientacao": "Obstrução"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2494086-7",
+   "siglaOrgao": "PLEN",
+   "descricao": "Aprovado o Requerimento. Sim: 361; Não: 10; Abstenção: 2; Total: 373.",
+   "siglaBancada": "Solidaried",
+   "uriBancada": "",
+   "orientacao": ""
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "Republican",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/37906",
+   "orientacao": "Sim"
+  },
+  {
+   "idVotacao": "2494086-7",
+   "uriVotacao": "https://dadosabertos.camara.leg.br/api/v2/votacoes/2358548-90",
+   "siglaOrgao": "PLEN",
+   "descricao": "Mantido o texto. Sim: 230; Não: 34; Abstenção: 4; Total: 268.",
+   "siglaBancada": "PSD",
+   "uriBancada": "https://dadosabertos.camara.leg.br/api/v2/partidos/37906",
+   "orientacao": "Liberado"
+  }
+ ]
+}
