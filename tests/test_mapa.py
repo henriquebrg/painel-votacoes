@@ -34,13 +34,25 @@ def test_dois_blocos_separados_em_dim1():
     assert var["2025T4"][0] > 0.5
 
 
+def _negado(df):
+    return df.assign(categoria=df["categoria"].map({"sim": "nao", "nao": "sim"}))
+
+
 def test_sinal_estavel():
-    a, _ = posicoes(_marcado(), JAN, min_votantes=10)
-    b, _ = posicoes(_marcado(ordem_inversa=True), JAN, min_votantes=10)
-    a = a.set_index("deputado_id").sort_index()
-    b = b.set_index("deputado_id").sort_index()
-    assert (np.sign(a["dim1"]) == np.sign(b["dim1"])).all()
-    assert (np.sign(a["dim2"]) == np.sign(b["dim2"])).all()
+    # votos originais e negados forçam sinais brutos opostos da SVD
+    for marcado in (_marcado(), _negado(_marcado())):
+        pos, _ = posicoes(marcado, JAN, min_votantes=10)
+        pos = pos.set_index("deputado_id")
+        assert pos.loc[range(0, 20), "dim1"].mean() < 0
+        assert pos.loc[range(20, 40), "dim2"].mean() >= 0
+
+
+def test_sem_pt_mantem_sinal():
+    m = _marcado()
+    m = m.assign(partido=m["partido"].replace("PT", "PSOL"))
+    pos, var = posicoes(m, JAN, min_votantes=10)
+    assert len(pos) > 0
+    assert "2025T4" in var
 
 
 def test_filtra_deputados_com_poucos_votos():
