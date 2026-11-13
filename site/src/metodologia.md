@@ -14,6 +14,18 @@ const grupos = FileAttachment("data/grupos.json").json();
 ```js
 const pct = (x) => `${(x * 100).toFixed(0)}%`;
 const num = (x) => x.toLocaleString("pt-BR");
+const mapa = FileAttachment("data/mapa.json").json();
+```
+
+```js
+const faixa = (i) => {
+  const v = Object.values(mapa.variancia).map((p) => p[i]);
+  return `${pct(Math.min(...v))} e ${pct(Math.max(...v))}`;
+};
+// trimestres da legislatura já iniciados na data da atualização
+const d = new Date(meta.atualizado_em);
+const trimestresPassados = Math.min(meta.janelas.length, (d.getUTCFullYear() - 2023) * 4 + Math.floor(d.getUTCMonth() / 3) + 1);
+const votosPorTrimestre = Math.round(meta.n_votacoes_com_orientacao_governo / trimestresPassados);
 ```
 
 ## 1. Quais votações entram
@@ -42,7 +54,7 @@ O índice principal de fidelidade ao partido é **"votou com a maioria dos outro
 - se a maioria dos colegas se absteve, a abstenção conta como uma posição;
 - o deputado está alinhado quando seu voto é igual a essa categoria. O partido considerado é o que ele tinha **na data da votação**.
 
-Por que não usar a orientação do líder? Porque em 2025 o bloco grande e os partidos do centrão (PP, União, PSD, MDB e Republicanos) deixaram a maior parte das votações sem orientação. O bloco grande orientou apenas 26 de 168 votações daquele ano. O índice pela orientação do líder ou do bloco continua disponível como **visão secundária**, mas não é comparável entre os anos. A cobertura dele, isto é, a fatia das votações com orientação válida para o partido, foi:
+Por que não usar a orientação do líder? Porque em 2025 o bloco grande e os partidos do centrão (PP, União, PSD, MDB e Republicanos) deixaram a maior parte das votações sem orientação. Na verificação de novembro de 2026, o bloco grande havia orientado apenas 26 de 168 votações de 2025. O índice pela orientação do líder ou do bloco continua disponível como **visão secundária**, mas não é comparável entre os anos. A cobertura dele, isto é, a fatia das votações com orientação válida para o partido, foi:
 
 ```js
 display(html`<table>
@@ -55,7 +67,7 @@ Como o índice pela maioria da bancada não depende de a liderança ter orientad
 
 ## 4. A janela móvel de 12 meses
 
-Cada trimestre mostra os índices **acumulados nos últimos 12 meses** (os 4 trimestres que terminam naquele). Um trimestre isolado tem cerca de 80 votações com orientação do governo, pouco para um número estável. A janela móvel suaviza o ruído sem esconder as mudanças de rumo. Também é possível ver o trimestre isolado ou a legislatura inteira.
+Cada trimestre mostra os índices **acumulados nos últimos 12 meses** (os 4 trimestres que terminam naquele). Um trimestre isolado tem, em média, cerca de ${votosPorTrimestre} votações com orientação do governo (total de ${num(meta.n_votacoes_com_orientacao_governo)} dividido por ${trimestresPassados} trimestres), pouco para um número estável. A janela móvel suaviza o ruído sem esconder as mudanças de rumo. Também é possível ver o trimestre isolado ou a legislatura inteira.
 
 ## 5. A margem de erro
 
@@ -84,7 +96,7 @@ display(html`<ul>${grupos.rotulos.map((r, i) => html`<li><strong>${r}</strong>: 
 
 O mapa coloca cada deputado num plano a partir de seus votos, usando uma **análise de componentes principais (PCA)** sobre a matriz de votos. Votações quase unânimes são descartadas, porque não distinguem ninguém. Deputados que votam de modo parecido ficam próximos. A orientação do mapa é fixa (o PT fica à esquerda), para que ele não se inverta de um trimestre para outro.
 
-Nas janelas calculadas, o primeiro eixo explica entre 38% e 47% da variação dos votos, e o segundo, entre 8% e 13%. O mapa resume bem a posição principal, mas não toda a diferença entre deputados. A posição no mapa descreve semelhança de votos, não ideologia.
+Nas janelas calculadas, o primeiro eixo explica entre ${faixa(0)} da variação dos votos, e o segundo, entre ${faixa(1)}. O mapa resume bem a posição principal, mas não toda a diferença entre deputados. A posição no mapa descreve semelhança de votos, não ideologia.
 
 ## 8. Como funciona o ranking
 
@@ -94,13 +106,13 @@ O ranking de **desgarrados** considera quem tem pelo menos 30 votos contados na 
 
 Os números são conferidos todos os dias, e a publicação é **bloqueada** se algo não bater.
 
-- **Radar do Congresso (Congresso em Foco).** O Radar calcula o governismo com a mesma comparação voto a voto com a orientação do líder do governo, sem contar ausências, mas sobre um universo diferente do deste painel: inclui votações nominais de comissões (sobretudo a CCJC) e desconsidera as votações em que o governo orientou "Obstrução". Este painel usa apenas votações do Plenário e conta a orientação "Obstrução". Como teste diário, o processo reproduz os números do Radar aplicando a regra do Radar aos mesmos dados abertos; isso valida a leitura dos dados e das orientações. Os índices publicados aqui seguem a regra deste painel. Na reprodução, os números coincidem exatamente em 99,6% dos deputado-trimestres de 2023 a 2025; com a regra do painel, a diferença anual típica é de até 1 ou 2 pontos percentuais, podendo passar de 10 pontos para deputados que votam muito em comissões.
+- **Radar do Congresso (Congresso em Foco).** O Radar calcula o governismo com a mesma comparação voto a voto com a orientação do líder do governo, sem contar ausências, mas sobre um universo diferente do deste painel: inclui votações nominais de comissões (sobretudo a CCJC) e desconsidera as votações em que o governo orientou "Obstrução". Este painel usa apenas votações do Plenário e conta a orientação "Obstrução". Como teste diário, o processo reproduz os números do Radar aplicando a regra do Radar aos mesmos dados abertos; isso valida a leitura dos dados e das orientações. Os índices publicados aqui seguem a regra deste painel. Na verificação de novembro de 2026, na reprodução, os números coincidiam exatamente em 99,6% dos deputado-trimestres de 2023 a 2025; com a regra do painel, a diferença anual típica era de até 1 ou 2 pontos percentuais, podendo passar de 10 pontos para deputados que votam muito em comissões.
 - **Placar oficial.** Para as votações nominais do Plenário, o total de votos Sim e Não que contamos é comparado ao placar oficial de cada votação, com pequena tolerância.
 - **Consistência interna.** Outros testes verificam, por exemplo, que os índices ficam entre 0 e 100% e que os totais de votos fecham.
 
 ## 10. Limitações conhecidas
 
-- **Orientações em branco.** Quando a liderança não orienta, não há como medir fidelidade por orientação. Em 2025 o bloco grande orientou só 26 de 168 votações. Por isso o eixo principal é a maioria da bancada, que tem seus próprios limites: partidos pequenos têm poucos colegas para comparar.
+- **Orientações em branco.** Quando a liderança não orienta, não há como medir fidelidade por orientação. Na verificação de novembro de 2026, o bloco grande havia orientado só 26 de 168 votações de 2025. Por isso o eixo principal é a maioria da bancada, que tem seus próprios limites: partidos pequenos têm poucos colegas para comparar.
 - **Só votações nominais do Plenário.** Votações simbólicas e de comissões não aparecem. Um deputado muito ativo em comissões pode parecer diferente do que mostra o Radar do Congresso.
 - **2023, primeiro trimestre.** Há poucas votações no período (a legislatura começou em fevereiro), então os números dessa janela são pouco estáveis, e as margens de erro são largas.
 - **O mapa é uma PCA.** É simples e fácil de explicar, mas um método especializado (W-NOMINATE) está previsto para uma versão futura.

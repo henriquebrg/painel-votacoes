@@ -14,6 +14,5 @@ export default {
     {name: "Metodologia", path: "/metodologia"}
   ],
   footer: `<span class="rodape-fonte">${escapar(textoRodape(meta))}</span>`,
-  head: '<html lang="pt-BR">',
   cleanUrls: true
 };
