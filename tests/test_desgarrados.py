@@ -5,9 +5,10 @@ from painel.desgarrados import classificar
 from painel.metricas import wilson
 
 
-def _linha(dep, partido="X", alinh_gov=0.5, n=100, alinh=0.5, sup=None, janela="legislatura", modo="movel"):
+def _linha(dep, partido="X", alinh_gov=0.5, n=100, alinh=0.5, sup=None, janela="legislatura", modo="movel",
+           n_gov=100):
     return {"janela": janela, "modo": modo, "deputado_id": dep, "partido": partido,
-            "alinh_gov": alinh_gov, "n_maioria": n, "alinh_maioria": alinh,
+            "alinh_gov": alinh_gov, "n_gov": n_gov, "n_maioria": n, "alinh_maioria": alinh,
             "ic_maioria_sup": alinh if sup is None else sup}
 
 
@@ -53,3 +54,11 @@ def test_ranking_por_janela_e_desempate():
     r = classificar(ind).set_index("deputado_id")
     assert r.loc[2, "posicao_ranking"] == 1 and r.loc[1, "posicao_ranking"] == 2
     assert r.loc[3, "posicao_ranking"] == 1
+
+
+def test_direcao_none_com_poucos_votos_do_governo():
+    ind = pd.DataFrame([_linha(1, alinh_gov=0.9, n_gov=29), _linha(2, alinh_gov=0.1), _linha(3, alinh_gov=0.5),
+                        _linha(4, alinh_gov=0.95, n_gov=30)])
+    r = classificar(ind).set_index("deputado_id")
+    assert r.loc[1, "direcao"] is None
+    assert r.loc[4, "direcao"] == "rumo ao governo"

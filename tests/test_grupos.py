@@ -29,7 +29,7 @@ def test_tres_nuvens_rotuladas():
 def test_atribuir_nan_sem_grupo():
     df, _ = _amostra()
     m = ajustar_grupos(df, seed=0)
-    novo = pd.DataFrame({"alinh_gov": [np.nan, 0.9], "alinh_maioria": [0.9, np.nan]})
+    novo = pd.DataFrame({"alinh_gov": [np.nan, 0.9], "alinh_maioria": [0.9, np.nan], "n_gov": 100, "n_maioria": 100})
     r = atribuir(m, novo)
     assert r["grupo"].isna().all()
 
@@ -37,7 +37,22 @@ def test_atribuir_nan_sem_grupo():
 def test_dist_centro_zero_no_centro():
     df, _ = _amostra()
     m = ajustar_grupos(df, seed=0)
-    pts = pd.DataFrame(m.centros, columns=["alinh_gov", "alinh_maioria"])
+    pts = pd.DataFrame(m.centros, columns=["alinh_gov", "alinh_maioria"]).assign(n_gov=100, n_maioria=100)
     r = atribuir(m, pts)
     assert list(r["grupo"]) == m.rotulos
     assert np.allclose(r["dist_centro"], 0)
+
+
+def test_atribuir_poucos_votos_sem_grupo():
+    df, _ = _amostra()
+    m = ajustar_grupos(df, seed=0)
+    c = m.centros[0]
+    novo = pd.DataFrame({
+        "alinh_gov": [c[0]] * 4, "alinh_maioria": [c[1]] * 4,
+        "n_gov": [29, 30, 100, 30], "n_maioria": [100, 29, 100, 30],
+    })
+    r = atribuir(m, novo)
+    assert r["grupo"].iloc[:2].isna().all()
+    assert np.isnan(r["dist_centro"].iloc[0]) and np.isnan(r["dist_centro"].iloc[1])
+    assert list(r["grupo"].iloc[2:]) == ["Base", "Base"]
+    assert atribuir(m, novo, n_min=10)["grupo"].notna().all()

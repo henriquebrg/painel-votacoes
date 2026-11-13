@@ -47,10 +47,15 @@ def ajustar_grupos(ind_legislatura, k: int | None = 3, k_max: int = 5,
     return ModeloGrupos(centros=centros, rotulos=_rotulos(k), k=k, bic=bic)
 
 
-def atribuir(modelo: ModeloGrupos, ind) -> pd.DataFrame:
+def atribuir(modelo: ModeloGrupos, ind, n_min: int = 30) -> pd.DataFrame:
+    """Grupo do centro mais próximo; sem grupo (None, dist NaN) se faltar eixo ou n_gov/n_maioria < n_min."""
     saida = ind.copy()
     pts = saida[EIXOS].to_numpy(dtype=float)
-    validos = ~np.isnan(pts).any(axis=1)
+    validos = (
+        ~np.isnan(pts).any(axis=1)
+        & (saida["n_gov"].to_numpy() >= n_min)
+        & (saida["n_maioria"].to_numpy() >= n_min)
+    )
     centros = np.array(modelo.centros)
     grupo = np.full(len(saida), None, dtype=object)
     dist = np.full(len(saida), np.nan)

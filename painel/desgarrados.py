@@ -6,11 +6,14 @@ CHAVE = ["modo", "janela"]
 
 
 def classificar(ind: pd.DataFrame, n_min: int = 30) -> pd.DataFrame:
-    """Acrescenta direcao, elegivel_ranking e posicao_ranking a `ind` (mediana e ranking por modo e janela)."""
+    """Acrescenta direcao, elegivel_ranking e posicao_ranking a `ind` (mediana e ranking por modo e janela).
+
+    direcao fica None sem alinh_gov ou com n_gov < n_min.
+    """
     r = ind.copy()
     mediana = r.groupby(CHAVE + ["partido"])["alinh_gov"].transform("median")
     direcao = np.where(r.alinh_gov > mediana, "rumo ao governo", "rumo à oposição").astype(object)
-    direcao[r.alinh_gov.isna().to_numpy()] = None
+    direcao[(r.alinh_gov.isna() | (r.n_gov < n_min)).to_numpy()] = None
     r["direcao"] = pd.Series(direcao, index=r.index, dtype=object)
     r["elegivel_ranking"] = r.n_maioria >= n_min
 
