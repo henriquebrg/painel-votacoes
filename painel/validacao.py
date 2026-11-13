@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from painel.metricas import BANCADA_GOVERNO, _seguiu_vetor
+
 CAMINHO_REFERENCIA = Path(__file__).resolve().parent.parent / "data" / "referencia" / "externa.csv"
 COLUNAS_REFERENCIA = ["fonte", "url", "metodo", "deputado_id", "nome", "inicio", "fim", "alinhamento_governo"]
 MAX_LISTADOS = 10
@@ -12,6 +14,8 @@ DEPUTADOS_MIN, DEPUTADOS_MAX = 400, 620
 COLUNAS_ALINH = ["alinh_gov", "alinh_par", "alinh_maioria"]
 PT_MIN, PL_MAX = 0.85, 0.50
 MIN_DEPUTADOS_PARTIDO = 10
+METODOS = {"igual", "diferente", "regra_radar"}
+ORIENTACOES_RADAR = {"sim", "nao"}
 
 
 class ValidacaoFalhou(Exception):
@@ -80,27 +84,63 @@ def checar_sanidade(ind_movel) -> list[str]:
     return erros
 
 
-def checar_referencia(marcado, ref: pd.DataFrame, tolerancia_pp: float = 5.0) -> list[str]:
-    """Recalcula alinh_gov no período de cada linha de `ref` e aponta diferenças > tolerancia_pp.
+def marcar_regra_radar(votos, votacoes, orientacoes) -> pd.DataFrame:
+    """deputado_id, data e seguiu_radar pela regra do Radar do Congresso, sobre votações de todos os órgãos.
 
-    `alinhamento_governo` é uma fração em [0, 1]. Linhas com metodo == "diferente" não geram erro.
+    Igual a `seguiu` (abstenção diverge; artigo17/branco ficam fora), mas só conta orientação do governo
+    sim ou não: votações em que o governo orientou Obstrução ficam fora. Reproduz o Radar em 99,6% dos
+    deputado-trimestres de 2023 a 2025. Serve só para validar a carga; os índices publicados não usam esta regra.
+    """
+    gov = (
+        orientacoes[(orientacoes.bancada == BANCADA_GOVERNO) & orientacoes.orientacao.isin(ORIENTACOES_RADAR)]
+        .drop_duplicates("id_votacao")[["id_votacao", "orientacao"]]
+    )
+    m = votos[["id_votacao", "deputado_id", "categoria"]].merge(gov, on="id_votacao").merge(
+        votacoes[["id_votacao", "data"]], on="id_votacao"
+    )
+    m["seguiu_radar"] = _seguiu_vetor(m.categoria, m.orientacao)
+    return m[["deputado_id", "data", "seguiu_radar"]]
+
+
+def _alinhamento_no_periodo(base: pd.DataFrame, coluna: str, deputado_id: str, inicio, fim) -> float | None:
+    sel = base[(base.deputado_id == deputado_id) & (base.data >= inicio) & (base.data <= fim)][coluna].dropna()
+    return None if sel.empty else float(sel.astype(float).mean())
+
+
+def checar_referencia(marcado, ref: pd.DataFrame, tolerancia_pp: float = 5.0,
+                      marcado_radar: pd.DataFrame | None = None) -> list[str]:
+    """Recalcula o alinhamento ao governo no período de cada linha de `ref` e aponta diferenças > tolerancia_pp.
+
+    `alinhamento_governo` é uma fração em [0, 1]. Por `metodo`:
+    - "igual": nossa regra (seguiu_gov de `marcado`, só Plenário);
+    - "regra_radar": regra do Radar sobre `marcado_radar` (de `marcar_regra_radar`, todos os órgãos);
+    - "diferente": não comparada.
+    Qualquer outro valor de `metodo` é erro.
     """
     erros = []
     for r in ref.itertuples(index=False):
-        if str(r.metodo).strip() == "diferente":
+        metodo = str(r.metodo).strip()
+        rotulo = f"referência {r.nome} ({r.fonte}, {r.inicio} a {r.fim})"
+        if metodo not in METODOS:
+            erros.append(f"{rotulo}: metodo desconhecido {metodo!r} (esperado um de {sorted(METODOS)})")
             continue
-        inicio, fim = pd.Timestamp(r.inicio), pd.Timestamp(r.fim)
-        sel = marcado[
-            (marcado.deputado_id == str(r.deputado_id)) & (marcado.data >= inicio) & (marcado.data <= fim)
-        ].seguiu_gov.dropna()
-        if sel.empty:
-            erros.append(f"referência {r.nome} ({r.fonte}, {r.inicio} a {r.fim}): nenhum voto com orientação do governo")
+        if metodo == "diferente":
             continue
-        nosso = float(sel.astype(float).mean())
+        if metodo == "regra_radar":
+            if marcado_radar is None:
+                erros.append(f"{rotulo}: linha pela regra do Radar sem os dados de todos os órgãos")
+                continue
+            base, coluna, regra = marcado_radar, "seguiu_radar", "regra do Radar"
+        else:
+            base, coluna, regra = marcado, "seguiu_gov", "regra do painel"
+        nosso = _alinhamento_no_periodo(base, coluna, str(r.deputado_id), pd.Timestamp(r.inicio), pd.Timestamp(r.fim))
+        if nosso is None:
+            erros.append(f"{rotulo}: nenhum voto com orientação do governo ({regra})")
+            continue
         diferenca = abs(nosso - float(r.alinhamento_governo)) * 100
         if diferenca > tolerancia_pp:
             erros.append(
-                f"referência {r.nome} ({r.fonte}, {r.inicio} a {r.fim}): externo {float(r.alinhamento_governo):.3f}, "
-                f"calculado {nosso:.3f} (diferença {diferenca:.1f} pp > {tolerancia_pp} pp)"
+                f"{rotulo}: externo {float(r.alinhamento_governo):.3f}, calculado {nosso:.3f} pela {regra} "
+                f"(diferença {diferenca:.1f} pp > {tolerancia_pp} pp)"
             )
     return erros

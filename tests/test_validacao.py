@@ -198,3 +198,88 @@ def test_exportar_falha_de_serializacao_preserva_arquivos_anteriores(tmp_path):
     with pytest.raises(TypeError):
         exportar(saida, ind, modelo, mapa, var, sem, meta)
     assert {p.name: p.read_bytes() for p in saida.iterdir()} == antes
+
+
+# ---------- referência pela regra do Radar ----------
+
+def _bruto(com_comissao=False):
+    """10 votações do Plenário (gov sim; deputado 1 segue em 8) + opcionalmente 10 de comissão (não segue)."""
+    vt, vo, ori = [], [], []
+    for i in range(10):
+        vt.append({"id_votacao": f"p{i}", "data": pd.Timestamp("2024-03-01") + pd.Timedelta(days=i), "sigla_orgao": "PLEN"})
+        vo.append({"id_votacao": f"p{i}", "deputado_id": "1", "nome": "Dep 1", "partido": "PP", "uf": "PR",
+                   "categoria": "sim" if i < 8 else "nao"})
+        ori.append({"id_votacao": f"p{i}", "bancada": "GOVERNO", "orientacao": "sim"})
+    # Orientação Obstrução no Plenário: conta na nossa regra, não na do Radar.
+    vt.append({"id_votacao": "pob", "data": pd.Timestamp("2024-04-01"), "sigla_orgao": "PLEN"})
+    vo.append({"id_votacao": "pob", "deputado_id": "1", "nome": "Dep 1", "partido": "PP", "uf": "PR", "categoria": "nao"})
+    ori.append({"id_votacao": "pob", "bancada": "GOVERNO", "orientacao": "obstrucao"})
+    if com_comissao:
+        for i in range(10):
+            vt.append({"id_votacao": f"c{i}", "data": pd.Timestamp("2024-05-01") + pd.Timedelta(days=i), "sigla_orgao": "CCJC"})
+            vo.append({"id_votacao": f"c{i}", "deputado_id": "1", "nome": "Dep 1", "partido": "PP", "uf": "PR",
+                       "categoria": "nao"})
+            ori.append({"id_votacao": f"c{i}", "bancada": "GOVERNO", "orientacao": "sim"})
+    return pd.DataFrame(vo), pd.DataFrame(vt), pd.DataFrame(ori)
+
+
+def _ref_radar(alinhamento):
+    return _ref(alinhamento, metodo="regra_radar")
+
+
+def _marcado_plenario(votos, votacoes, orientacoes):
+    from painel.carregar import filtrar_plenario
+    from painel.metricas import marcar_alinhamento
+
+    plen = filtrar_plenario(votacoes)
+    v = votos[votos.id_votacao.isin(plen.id_votacao)]
+    o = orientacoes[orientacoes.id_votacao.isin(plen.id_votacao)]
+    apl = pd.DataFrame(columns=["id_votacao", "partido", "orientacao", "fonte"], dtype=object)
+    return marcar_alinhamento(v, plen, o, apl)
+
+
+def test_regra_radar_dentro_da_tolerancia_passa():
+    from painel.validacao import marcar_regra_radar
+
+    votos, votacoes, ori = _bruto()
+    radar = marcar_regra_radar(votos, votacoes, ori)
+    # Regra do Radar: 8/10 (a votação com orientação Obstrução fica fora); 4 pp de distância.
+    assert checar_referencia(_marcado(), _ref_radar(0.84), marcado_radar=radar) == []
+
+
+def test_regra_radar_acima_da_tolerancia_falha():
+    from painel.validacao import marcar_regra_radar
+
+    votos, votacoes, ori = _bruto()
+    radar = marcar_regra_radar(votos, votacoes, ori)
+    erros = checar_referencia(_marcado(), _ref_radar(0.86), marcado_radar=radar)
+    assert len(erros) == 1 and "regra do Radar" in erros[0]
+
+
+def test_voto_em_comissao_muda_regra_radar_mas_nao_o_indice_do_plenario():
+    from painel.validacao import marcar_regra_radar
+
+    sem = _bruto(com_comissao=False)
+    com = _bruto(com_comissao=True)
+    radar_sem, radar_com = marcar_regra_radar(*sem), marcar_regra_radar(*com)
+    assert radar_sem.seguiu_radar.dropna().astype(float).mean() == pytest.approx(0.8)
+    assert radar_com.seguiu_radar.dropna().astype(float).mean() == pytest.approx(0.4)  # 8/20
+
+    m_sem, m_com = _marcado_plenario(*sem), _marcado_plenario(*com)
+    assert m_sem.seguiu_gov.dropna().astype(float).mean() == pytest.approx(8 / 11)  # Obstrução conta
+    assert m_com.seguiu_gov.dropna().astype(float).mean() == pytest.approx(8 / 11)
+
+    ref_igual = _ref(8 / 11, metodo="igual")
+    assert checar_referencia(m_com, ref_igual, marcado_radar=radar_com) == []
+    assert checar_referencia(m_com, _ref_radar(0.8), marcado_radar=radar_com) != []
+    assert checar_referencia(m_sem, _ref_radar(0.8), marcado_radar=radar_sem) == []
+
+
+def test_regra_radar_sem_dados_brutos_falha():
+    erros = checar_referencia(_marcado(), _ref_radar(0.75))  # bateria com a nossa regra, mas exige os dados brutos
+    assert len(erros) == 1 and "regra do Radar" in erros[0]
+
+
+def test_metodo_desconhecido_falha():
+    erros = checar_referencia(_marcado(), _ref(0.75, metodo="parecido"))
+    assert len(erros) == 1 and "parecido" in erros[0]

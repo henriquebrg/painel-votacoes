@@ -13,7 +13,14 @@ from painel.grupos import ajustar_grupos, atribuir
 from painel.mapa import posicoes
 from painel.metricas import BANCADA_GOVERNO, MODOS, ORIENTACOES_VALIDAS, indices, janelas, marcar_alinhamento, nao_orientacao
 from painel.orientacao_partido import carregar_tabela_blocos, cobertura, orientacao_aplicavel
-from painel.validacao import CAMINHO_REFERENCIA, COLUNAS_REFERENCIA, checar_placar, checar_referencia, checar_sanidade
+from painel.validacao import (
+    CAMINHO_REFERENCIA,
+    COLUNAS_REFERENCIA,
+    checar_placar,
+    checar_referencia,
+    checar_sanidade,
+    marcar_regra_radar,
+)
 
 RAIZ = Path(__file__).resolve().parent.parent
 CAMINHO_BLOCOS = RAIZ / "data" / "curado" / "blocos.csv"
@@ -81,13 +88,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERRO: {exc}")
         return 1
 
-    votacoes = filtrar_plenario(carregar_votacoes(arquivos["votacoes"]))
-    votacoes = votacoes[votacoes.data.between(INICIO_LEGISLATURA, FIM_LEGISLATURA)].reset_index(drop=True)
+    # Todos os órgãos na legislatura: só para a checagem pela regra do Radar. O resto usa só o Plenário.
+    votacoes_todas = carregar_votacoes(arquivos["votacoes"])
+    votacoes_todas = votacoes_todas[votacoes_todas.data.between(INICIO_LEGISLATURA, FIM_LEGISLATURA)]
+    votos_todos = carregar_votos(arquivos["votacoesVotos"])
+    orientacoes_todas = carregar_orientacoes(arquivos["votacoesOrientacoes"])
+    marcado_radar = marcar_regra_radar(votos_todos, votacoes_todas, orientacoes_todas)
+
+    votacoes = filtrar_plenario(votacoes_todas)
     plenario = set(votacoes.id_votacao)
-    votos = carregar_votos(arquivos["votacoesVotos"])
-    votos = votos[votos.id_votacao.isin(plenario)].reset_index(drop=True)
-    orientacoes = carregar_orientacoes(arquivos["votacoesOrientacoes"])
-    orientacoes = orientacoes[orientacoes.id_votacao.isin(plenario)].reset_index(drop=True)
+    votos = votos_todos[votos_todos.id_votacao.isin(plenario)].reset_index(drop=True)
+    orientacoes = orientacoes_todas[orientacoes_todas.id_votacao.isin(plenario)].reset_index(drop=True)
     print(f"{len(votacoes)} votações do Plenário, {len(votos)} votos")
 
     aplicavel = orientacao_aplicavel(orientacoes, votacoes, votos, carregar_tabela_blocos(CAMINHO_BLOCOS))
@@ -98,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     erros = (
         checar_placar(votos, votacoes)
         + checar_sanidade(por_modo["movel"])
-        + checar_referencia(marcado, _ler_referencia())
+        + checar_referencia(marcado, _ler_referencia(), marcado_radar=marcado_radar)
     )
     if erros:
         print("VALIDAÇÃO FALHOU — nada foi exportado:")
