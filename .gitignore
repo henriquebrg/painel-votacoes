@@ -1,2 +1,10 @@
 .superpowers/
 .DS_Store
+data/raw/
+site/dist/
+site/src/.observablehq/cache/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
