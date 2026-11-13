@@ -19,8 +19,14 @@ class ValidacaoFalhou(Exception):
 
 
 def checar_placar(votos, votacoes, tolerancia: float = 0.02) -> list[str]:
-    """Compara, em cada votação do Plenário, as contagens sim/não dos votos com votos_sim/votos_nao."""
+    """Compara, em cada votação nominal do Plenário, as contagens sim/não dos votos com votos_sim/votos_nao.
+
+    Nominal = placar oficial não nulo ou ao menos um voto registrado. As simbólicas (0/0, sem votos)
+    ficam fora do denominador para não diluir a tolerância.
+    """
     plen = votacoes[votacoes.sigla_orgao == "PLEN"].set_index("id_votacao")[["votos_sim", "votos_nao"]]
+    nominal = (plen.votos_sim + plen.votos_nao > 0) | plen.index.isin(votos.id_votacao)
+    plen = plen[nominal]
     if plen.empty:
         return []
     sn = votos[votos.categoria.isin(["sim", "nao"])]
@@ -37,7 +43,7 @@ def checar_placar(votos, votacoes, tolerancia: float = 0.02) -> list[str]:
         f"votos {contagem.at[i, 'sim']} sim/{contagem.at[i, 'nao']} não"
         for i in plen.index[diverge][:MAX_LISTADOS]
     ]
-    return [f"placar divergente em {int(diverge.sum())} de {len(plen)} votações do Plenário "
+    return [f"placar divergente em {int(diverge.sum())} de {len(plen)} votações nominais do Plenário "
             f"({taxa:.1%} > {tolerancia:.1%}); exemplos: " + "; ".join(exemplos)]
 
 

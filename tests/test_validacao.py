@@ -161,3 +161,40 @@ def test_meta_sem_chave_obrigatoria_falha(tmp_path):
     modelo = ModeloGrupos(centros=[], rotulos=[], k=3, bic={})
     with pytest.raises(KeyError):
         exportar(tmp_path, pd.DataFrame(), modelo, pd.DataFrame(), {}, pd.DataFrame(), {"anos": [2023]})
+
+
+def test_placar_votacoes_simbolicas_nao_diluem():
+    nominais = [f"n{i}" for i in range(10)]
+    simbolicas = [f"s{i}" for i in range(100)]
+    votacoes = pd.DataFrame(
+        [{"id_votacao": i, "sigla_orgao": "PLEN", "votos_sim": 2, "votos_nao": 1} for i in nominais]
+        + [{"id_votacao": i, "sigla_orgao": "PLEN", "votos_sim": 0, "votos_nao": 0} for i in simbolicas]
+    )
+    votacoes.loc[0, "votos_sim"] = 3  # 1 de 10 nominais diverge
+    votos = pd.DataFrame(
+        [{"id_votacao": i, "deputado_id": d, "categoria": c} for i in nominais
+         for d, c in (("1", "sim"), ("2", "sim"), ("3", "nao"))]
+    )
+    erros = checar_placar(votos, votacoes, tolerancia=0.02)
+    assert len(erros) == 1 and "1 de 10" in erros[0]
+
+
+def _exportar_args(meta_extra=None):
+    ind = pd.DataFrame([{"janela": "2023T1", "deputado_id": "1", "alinh_gov": 0.5}])
+    modelo = ModeloGrupos(centros=[(0.9, 0.9)], rotulos=["Base"], k=1, bic={1: 1.0})
+    mapa = pd.DataFrame([{"janela": "2023T1", "deputado_id": "1", "dim1": 0.0, "dim2": 0.0}])
+    sem = pd.DataFrame([{"janela": "2023T1", "partido": "PL", "taxa_sem_orientacao": 0.1}])
+    meta = {"anos": [2023], "n_votacoes_plenario": 1, "n_votacoes_com_orientacao_governo": 1,
+            "cobertura_orientacao_partido": {"2023": 0.9}, "janelas": ["2023T1"], **(meta_extra or {})}
+    return ind, modelo, mapa, {"2023T1": [0.4, 0.1]}, sem, meta
+
+
+def test_exportar_falha_de_serializacao_preserva_arquivos_anteriores(tmp_path):
+    saida = tmp_path / "saida"
+    exportar(saida, *_exportar_args())
+    antes = {p.name: p.read_bytes() for p in saida.iterdir()}
+    ind, modelo, mapa, var, sem, meta = _exportar_args({"janelas": {"2023T1"}})  # set: não serializável
+    ind.loc[0, "alinh_gov"] = 0.9
+    with pytest.raises(TypeError):
+        exportar(saida, ind, modelo, mapa, var, sem, meta)
+    assert {p.name: p.read_bytes() for p in saida.iterdir()} == antes

@@ -22,23 +22,36 @@ def _registros(df: pd.DataFrame) -> list[dict]:
     return json.loads(df.to_json(orient="records", double_precision=CASAS, force_ascii=False))
 
 
-def _gravar(caminho: Path, dados) -> None:
-    tmp = caminho.with_name(caminho.name + ".tmp")
-    tmp.write_text(json.dumps(dados, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, caminho)
-
-
 def exportar(saida: Path, ind: pd.DataFrame, modelo: ModeloGrupos, mapa: pd.DataFrame,
              variancia: dict, sem_orientacao: pd.DataFrame, meta: dict) -> None:
+    """Grava os 5 arquivos como conjunto: serializa tudo, grava os .tmp e só então troca os definitivos.
+
+    Uma falha de serialização não toca a pasta; uma falha de escrita remove os .tmp já gravados.
+    """
     meta_completa = {
         "atualizado_em": datetime.now(FUSO).isoformat(timespec="seconds"),
         "fonte": FONTE,
         **{chave: meta[chave] for chave in CHAVES_META},
     }
+    conteudos = {
+        nome: json.dumps(dados, ensure_ascii=False)
+        for nome, dados in (
+            ("indices.json", _registros(ind)),
+            ("grupos.json", asdict(modelo)),
+            ("mapa.json", {"posicoes": _registros(mapa), "variancia": variancia}),
+            ("sem_orientacao.json", _registros(sem_orientacao)),
+            ("meta.json", meta_completa),
+        )
+    }
     saida = Path(saida)
     saida.mkdir(parents=True, exist_ok=True)
-    _gravar(saida / "indices.json", _registros(ind))
-    _gravar(saida / "grupos.json", asdict(modelo))
-    _gravar(saida / "mapa.json", {"posicoes": _registros(mapa), "variancia": variancia})
-    _gravar(saida / "sem_orientacao.json", _registros(sem_orientacao))
-    _gravar(saida / "meta.json", meta_completa)
+    temporarios = {nome: saida / f"{nome}.tmp" for nome in conteudos}
+    try:
+        for nome, texto in conteudos.items():
+            temporarios[nome].write_text(texto, encoding="utf-8")
+    except OSError:
+        for tmp in temporarios.values():
+            tmp.unlink(missing_ok=True)
+        raise
+    for nome, tmp in temporarios.items():
+        os.replace(tmp, saida / nome)
