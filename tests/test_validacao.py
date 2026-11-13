@@ -132,7 +132,9 @@ CHAVES_META = {"atualizado_em", "fonte", "anos", "n_votacoes_plenario", "n_votac
 
 def test_exportar_arquivos(tmp_path):
     ind = pd.DataFrame([{"janela": "2023T1", "modo": "movel", "deputado_id": "1", "alinh_gov": 0.123456789,
-                         "alinh_maioria": np.nan, "n_gov": 10}])
+                         "alinh_maioria": np.nan, "n_gov": 10},
+                        {"janela": "legislatura", "modo": "legislatura", "deputado_id": "1", "alinh_gov": 0.5,
+                         "alinh_maioria": 0.75, "n_gov": 40}])
     modelo = ModeloGrupos(centros=[(0.9, 0.9), (0.5, 0.8), (0.2, 0.9)],
                           rotulos=["Base", "Independentes", "Oposição"], k=3, bic={2: 10.0, 3: 5.0})
     mapa = pd.DataFrame([{"janela": "2023T1", "deputado_id": "1", "dim1": -1.0, "dim2": 0.5}])
@@ -141,16 +143,24 @@ def test_exportar_arquivos(tmp_path):
     meta = {"anos": [2023], "n_votacoes_plenario": 4, "n_votacoes_com_orientacao_governo": 3,
             "cobertura_orientacao_partido": {"2023": 0.9}, "janelas": ["2023T1"]}
     saida = tmp_path / "saida"
+    saida.mkdir()
+    (saida / "indices.json").write_text("[]", encoding="utf-8")  # formato antigo, deve sumir
     exportar(saida, ind, modelo, mapa, {"2023T1": [0.4, 0.1]}, sem, meta)
 
-    nomes = {"indices.json", "grupos.json", "mapa.json", "sem_orientacao.json", "meta.json"}
+    nomes = {"indices-movel.json", "indices-trimestre.json", "indices-legislatura.json",
+             "grupos.json", "mapa.json", "sem_orientacao.json", "meta.json"}
     assert {p.name for p in saida.iterdir()} == nomes
     lidos = {n: json.loads((saida / n).read_text(encoding="utf-8")) for n in nomes}
     assert CHAVES_META <= set(lidos["meta.json"])
     assert lidos["meta.json"]["fonte"] == "Câmara dos Deputados — Dados Abertos"
     assert lidos["meta.json"]["atualizado_em"].endswith("-03:00")
-    assert lidos["indices.json"][0]["alinh_gov"] == 0.1235
-    assert lidos["indices.json"][0]["alinh_maioria"] is None
+    movel = lidos["indices-movel.json"]
+    assert len(movel) == 1 and movel[0]["modo"] == "movel"
+    assert movel[0]["alinh_gov"] == 0.1235
+    assert movel[0]["alinh_maioria"] is None
+    assert set(movel[0]) == set(ind.columns)
+    assert lidos["indices-trimestre.json"] == []
+    assert [r["janela"] for r in lidos["indices-legislatura.json"]] == ["legislatura"]
     assert set(lidos["grupos.json"]) == {"centros", "rotulos", "k", "bic"}
     assert set(lidos["mapa.json"]) == {"posicoes", "variancia"}
     assert lidos["mapa.json"]["variancia"] == {"2023T1": [0.4, 0.1]}
@@ -180,7 +190,7 @@ def test_placar_votacoes_simbolicas_nao_diluem():
 
 
 def _exportar_args(meta_extra=None):
-    ind = pd.DataFrame([{"janela": "2023T1", "deputado_id": "1", "alinh_gov": 0.5}])
+    ind = pd.DataFrame([{"janela": "2023T1", "modo": "movel", "deputado_id": "1", "alinh_gov": 0.5}])
     modelo = ModeloGrupos(centros=[(0.9, 0.9)], rotulos=["Base"], k=1, bic={1: 1.0})
     mapa = pd.DataFrame([{"janela": "2023T1", "deputado_id": "1", "dim1": 0.0, "dim2": 0.0}])
     sem = pd.DataFrame([{"janela": "2023T1", "partido": "PL", "taxa_sem_orientacao": 0.1}])

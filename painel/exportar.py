@@ -13,6 +13,8 @@ from painel.grupos import ModeloGrupos
 FONTE = "Câmara dos Deputados — Dados Abertos"
 FUSO = ZoneInfo("America/Sao_Paulo")
 CASAS = 4
+MODOS = ("movel", "trimestre", "legislatura")
+ANTIGOS = ("indices.json",)  # formato anterior, um arquivo só para todos os modos
 CHAVES_META = ["n_votacoes_plenario", "n_votacoes_com_orientacao_governo", "anos",
                "cobertura_orientacao_partido", "janelas"]
 
@@ -24,9 +26,11 @@ def _registros(df: pd.DataFrame) -> list[dict]:
 
 def exportar(saida: Path, ind: pd.DataFrame, modelo: ModeloGrupos, mapa: pd.DataFrame,
              variancia: dict, sem_orientacao: pd.DataFrame, meta: dict) -> None:
-    """Grava os 5 arquivos como conjunto: serializa tudo, grava os .tmp e só então troca os definitivos.
+    """Grava os 7 arquivos como conjunto: serializa tudo, grava os .tmp e só então troca os definitivos.
 
-    Uma falha de serialização não toca a pasta; uma falha de escrita remove os .tmp já gravados.
+    Os índices vão em um arquivo por modo de janela (`indices-{modo}.json`), para o site carregar
+    só o modo ativo. Uma falha de serialização não toca a pasta; uma falha de escrita remove os
+    .tmp já gravados.
     """
     meta_completa = {
         "atualizado_em": datetime.now(FUSO).isoformat(timespec="seconds"),
@@ -36,7 +40,7 @@ def exportar(saida: Path, ind: pd.DataFrame, modelo: ModeloGrupos, mapa: pd.Data
     conteudos = {
         nome: json.dumps(dados, ensure_ascii=False)
         for nome, dados in (
-            ("indices.json", _registros(ind)),
+            *((f"indices-{modo}.json", _registros(ind[ind["modo"] == modo])) for modo in MODOS),
             ("grupos.json", asdict(modelo)),
             ("mapa.json", {"posicoes": _registros(mapa), "variancia": variancia}),
             ("sem_orientacao.json", _registros(sem_orientacao)),
@@ -55,3 +59,5 @@ def exportar(saida: Path, ind: pd.DataFrame, modelo: ModeloGrupos, mapa: pd.Data
         raise
     for nome, tmp in temporarios.items():
         os.replace(tmp, saida / nome)
+    for nome in ANTIGOS:
+        (saida / nome).unlink(missing_ok=True)
