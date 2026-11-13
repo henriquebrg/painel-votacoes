@@ -12,16 +12,16 @@ const grupos = FileAttachment("data/grupos.json").json();
 ```
 
 ```js
-const pct = (x) => `${(x * 100).toFixed(0)}%`;
+import {pct, faixaPct} from "./components/formato.js";
+```
+
+```js
 const num = (x) => x.toLocaleString("pt-BR");
 const mapa = FileAttachment("data/mapa.json").json();
 ```
 
 ```js
-const faixa = (i) => {
-  const v = Object.values(mapa.variancia).map((p) => p[i]);
-  return `${pct(Math.min(...v))} e ${pct(Math.max(...v))}`;
-};
+const faixa = (i) => faixaPct(Object.values(mapa.variancia).map((p) => p[i]).filter(Number.isFinite));
 // trimestres da legislatura já iniciados na data da atualização
 const d = new Date(meta.atualizado_em);
 const trimestresPassados = Math.min(meta.janelas.length, (d.getUTCFullYear() - 2023) * 4 + Math.floor(d.getUTCMonth() / 3) + 1);
@@ -30,7 +30,7 @@ const votosPorTrimestre = Math.round(meta.n_votacoes_com_orientacao_governo / tr
 
 ## 1. Quais votações entram
 
-Entram apenas as **votações nominais do Plenário**, aquelas em que o voto de cada deputado fica registrado. Votações simbólicas (sem registro individual) e votações de comissões ficam de fora. Na última atualização, o painel tinha **${num(meta.n_votacoes_plenario)}** votações do Plenário nos dados, das quais **${num(meta.n_votacoes_com_orientacao_governo)}** com orientação do governo.
+Entram apenas as **votações nominais do Plenário**, aquelas em que o voto de cada deputado fica registrado. Votações simbólicas (sem registro individual) e votações de comissões ficam de fora. Na última atualização, o painel tinha **${num(meta.n_votacoes_plenario)}** votações nominais no Plenário, das quais **${num(meta.n_votacoes_com_orientacao_governo)}** com orientação do governo.
 
 ## 2. A regra de alinhamento
 
@@ -75,7 +75,7 @@ Todo índice vem com um **intervalo de Wilson a 95%**. É a faixa em que o valor
 
 ## 6. Os grupos
 
-Os deputados são separados em grupos por uma **mistura gaussiana** (um método estatístico que encontra aglomerados) sobre dois eixos: alinhamento com o governo e alinhamento com a maioria do partido. O ajuste é feito **uma única vez, com a legislatura inteira**. Em cada janela, cada deputado entra no grupo cujo centro está mais próximo. Assim os grupos não trocam de nome de um período para outro. Os grupos são nomeados pela posição do centro no eixo do governo, do mais alto ao mais baixo: Base, Independentes e Oposição.
+Os deputados são separados em grupos por uma **mistura gaussiana** (um método estatístico que encontra aglomerados) sobre dois eixos: alinhamento com o governo e alinhamento com a maioria do partido. O ajuste é feito **uma única vez, com a legislatura inteira**. Em cada janela, cada deputado entra no grupo cujo centro está mais próximo, desde que tenha pelo menos 30 votações contadas tanto com o governo quanto com a maioria do partido; com menos, ele aparece como "Sem grupo (poucos votos)", em cinza. Assim os grupos não trocam de nome de um período para outro. Os grupos são nomeados pela posição do centro no eixo do governo, do mais alto ao mais baixo: Base, Independentes e Oposição.
 
 O número padrão é 3. O critério BIC (quanto menor, melhor o ajuste, descontada a complexidade do modelo) para cada número de grupos testado foi:
 
@@ -100,7 +100,7 @@ Nas janelas calculadas, o primeiro eixo explica entre ${faixa(0)} da variação 
 
 ## 8. Como funciona o ranking
 
-O ranking de **desgarrados** considera quem tem pelo menos 30 votos contados na janela. A ordem usa o **limite superior do intervalo de Wilson** do alinhamento com a maioria do partido: assim, quem tem poucos votos não sobe só por sorte. Há duas direções, conforme o deputado se afasta da maioria do partido **para o lado do governo** (alinhamento com o governo acima da mediana do partido na janela) ou **para o lado da oposição** (abaixo da mediana). As duas situações têm leituras políticas diferentes, por isso são listadas separadamente.
+O ranking de **desgarrados** considera quem tem pelo menos 30 votos contados na janela. A ordem usa o **limite superior do intervalo de Wilson** do alinhamento com a maioria do partido: assim, quem tem poucos votos não sobe só por sorte. Há duas direções, conforme o deputado se afasta da maioria do partido **para o lado do governo** (alinhamento com o governo acima da mediana do partido na janela) ou **para o lado da oposição** (abaixo da mediana). As duas situações têm leituras políticas diferentes, por isso são listadas separadamente. A direção só é indicada para quem tem pelo menos 30 votações com orientação do governo na janela; com menos, a coluna "Governo" do ranking mostra "poucos votos".
 
 ## 9. Conferências com fontes externas e com o placar oficial
 

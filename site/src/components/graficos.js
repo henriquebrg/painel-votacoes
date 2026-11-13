@@ -1,6 +1,9 @@
 import * as Plot from "npm:@observablehq/plot";
 import {html, svg} from "npm:htl";
 import {ordenarRanking} from "./estado.js";
+import {pct, rotuloGrupo, governoRanking, N_MIN, ROTULO_SEM_GRUPO} from "./formato.js";
+
+export {pct, ROTULO_SEM_GRUPO};
 
 // Uma cor por grupo, a mesma em todas as páginas.
 export const CORES_GRUPO = {Base: "#2f6690", Independentes: "#c08a2d", "Oposição": "#b8483a"};
@@ -15,7 +18,6 @@ export const COR_OUTRO_PARTIDO = "#bbb";
 const corPartido = (p) => CORES_PARTIDO[p] ?? COR_OUTRO_PARTIDO;
 export const PARTIDOS_SEM_ORIENTACAO = ["PT", "PL", "PP", "UNIÃO", "PSD", "MDB", "REPUBLICANOS"];
 
-export const pct = (x) => (x == null || Number.isNaN(x) ? "—" : `${Math.round(x * 100)}%`);
 const num = (x) => (x ?? 0).toLocaleString("pt-BR");
 
 export const ROTULO_EIXO_PARTIDO = {
@@ -28,6 +30,7 @@ const campoNPartido = (eixoPartido) => (eixoPartido === "orientacao" ? "n_par" :
 
 /**
  * Dispersão governo × partido: um ponto por deputado, cor pelo grupo.
+ * Deputados sem grupo (poucos votos) ficam em cinza, esmaecidos e atrás dos demais.
  * Centros dos grupos como anéis pretos (só no eixo da maioria, onde foram ajustados) e
  * o rastro do deputado selecionado (linha com pontos ao longo das janelas).
  * O valor do gráfico (`.value`) é o deputado sob o ponteiro.
@@ -35,13 +38,19 @@ const campoNPartido = (eixoPartido) => (eixoPartido === "orientacao" ? "n_par" :
 export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", destaque = null, width = 640} = {}) {
   const y = campoPartido(eixoPartido);
   const nPartido = campoNPartido(eixoPartido);
-  const pontos = rows.filter((r) => r.alinh_gov != null && r[y] != null);
+  // sem grupo primeiro: desenhados atrás
+  const pontos = rows.filter((r) => r.alinh_gov != null && r[y] != null)
+    .sort((a, b) => (a.grupo == null ? 0 : 1) - (b.grupo == null ? 0 : 1));
   const selecionado = pontos.filter((r) => destaque != null && String(r.deputado_id) === String(destaque));
   const trilha = rastro.filter((r) => r.alinh_gov != null && r[y] != null);
   const centros = eixoPartido === "maioria" && grupos
     ? grupos.centros.map(([gov, par], i) => ({alinh_gov: gov, [y]: par, rotulo: grupos.rotulos[i]}))
     : [];
-  const rotulos = grupos?.rotulos ?? Object.keys(CORES_GRUPO);
+  const rotulos = [
+    ...(grupos?.rotulos ?? Object.keys(CORES_GRUPO)),
+    ...(pontos.some((r) => r.grupo == null) ? [ROTULO_SEM_GRUPO] : [])
+  ];
+  const opacidade = destaque == null ? 0.75 : 0.35;
 
   return Plot.plot({
     width,
@@ -60,15 +69,15 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
     marks: [
       Plot.frame({stroke: "#ddd"}),
       Plot.dot(pontos, {
-        x: "alinh_gov", y, fill: "grupo", r: 3.5,
-        fillOpacity: destaque == null ? 0.75 : 0.35, stroke: "white", strokeWidth: 0.5
+        x: "alinh_gov", y, fill: rotuloGrupo, r: 3.5,
+        fillOpacity: (d) => (d.grupo == null ? opacidade * 0.4 : opacidade), stroke: "white", strokeWidth: 0.5
       }),
       Plot.line(trilha, {x: "alinh_gov", y, stroke: "#222", strokeWidth: 1.5, marker: "dot"}),
       // início do rastro; o fim coincide com o ponto destacado
       Plot.text(trilha.length > 1 ? trilha.slice(0, 1) : [], {
         x: "alinh_gov", y, text: "janela", dy: -10, fontSize: 10, fill: "#444"
       }),
-      Plot.dot(selecionado, {x: "alinh_gov", y, r: 7, stroke: "#111", strokeWidth: 2, fill: "grupo"}),
+      Plot.dot(selecionado, {x: "alinh_gov", y, r: 7, stroke: "#111", strokeWidth: 2, fill: rotuloGrupo}),
       Plot.text(selecionado, {
         x: "alinh_gov", y, text: (d) => d.nome, dy: -14, fontWeight: 600, fill: "#111",
         stroke: "white", strokeWidth: 3
@@ -82,6 +91,7 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
         x: "alinh_gov", y,
         title: (d) => [
           `${d.nome} (${d.partido}-${d.uf})`,
+          rotuloGrupo(d),
           `Governo: ${pct(d.alinh_gov)}`,
           `Partido: ${pct(d[y])}`,
           `n: ${num(d.n_gov)} votações com orientação do governo · ${num(d[nPartido])} para o partido`
@@ -183,16 +193,16 @@ function barraFidelidade(r, largura = 140) {
  */
 export function rankingDesgarrados(rows, {limite = 20, direcao = "todas", destaque = null, aoSelecionar = null} = {}) {
   const linhas = ordenarRanking(rows, direcao).slice(0, limite);
-  if (!linhas.length) return html`<p class="dica">Nenhum deputado com ao menos 30 votações contadas nesta janela.</p>`;
+  if (!linhas.length) return html`<p class="dica">Nenhum deputado elegível com estes filtros.</p>`;
   return html`<table class="ranking">
-    <thead><tr><th>#</th><th>Deputado</th><th>Fidelidade à bancada</th><th>IC 95%</th><th>Governo</th><th>Direção</th></tr></thead>
+    <thead><tr><th>#</th><th>Deputado</th><th>Fidelidade à bancada</th><th>IC 95%</th><th>Governo (IC 95%)</th><th>Direção</th></tr></thead>
     <tbody>${linhas.map((r) => {
       const tr = html`<tr class=${String(r.deputado_id) === String(destaque) ? "selecionado" : ""} tabindex="0">
         <td class="n">${r.posicao_ranking}</td>
         <td><strong>${r.nome}</strong> <span class="sub">(${r.partido}-${r.uf})</span></td>
         <td>${barraFidelidade(r)} <span class="valor">${pct(r.alinh_maioria)}</span></td>
         <td class="ic">${pct(r.ic_maioria_inf)} a ${pct(r.ic_maioria_sup)}</td>
-        <td class="valor">${pct(r.alinh_gov)}</td>
+        <td class=${(r.n_gov ?? 0) >= N_MIN ? "governo" : "governo poucos"}>${governoRanking(r)}</td>
         <td>${r.direcao ?? "—"}</td>
       </tr>`;
       if (aoSelecionar) {

@@ -10,6 +10,7 @@ toc: false
 ```js
 import {lerEstado, escreverEstado, filtrar, rastro, DIRECOES} from "./components/estado.js";
 import {dispersao, mapaPosicoes, rankingDesgarrados, semOrientacao, CORES_GRUPO, COR_SEM_GRUPO, ROTULO_EIXO_PARTIDO, pct} from "./components/graficos.js";
+import {rotuloGrupo} from "./components/formato.js";
 ```
 
 ```js
@@ -152,7 +153,9 @@ copiar.onclick = async () => {
 const janelasMapa = [...new Set(mapa.posicoes.map((p) => p.janela))].sort();
 const janelaMapa = legislatura ? janelasMapa.at(-1) : janela;
 const posicoesMapa = mapa.posicoes.filter((p) => p.janela === janelaMapa);
-const notaMapa = posicoesMapa.length === 0
+const notaMapa = janelaMapa == null
+  ? "Ainda não há mapa de posições."
+  : posicoesMapa.length === 0
   ? `Sem mapa de posições para ${formatarJanela(janelaMapa)}.`
   : modo === "trimestre"
     ? `O mapa usa a janela móvel de 4 trimestres até ${formatarJanela(janelaMapa)}; um trimestre sozinho tem poucas votações.`
@@ -224,8 +227,8 @@ function painelDeputado() {
   const cor = CORES_GRUPO[r.grupo] ?? COR_SEM_GRUPO;
   return html`<h2>${r.nome}</h2>
     <p class="sub">${r.partido}-${r.uf} · ${r.regiao}</p>
-    <p class="grupo"><span class="bolinha" style="background:${cor}"></span><strong>${r.grupo ?? "Sem grupo"}</strong>
-      <span class="dist">distância ao centro do grupo: ${decimal(r.dist_centro)}</span></p>
+    <p class="grupo"><span class="bolinha" style="background:${cor}"></span><strong>${rotuloGrupo(r)}</strong>
+      ${r.grupo ? html`<span class="dist">distância ao centro do grupo: ${decimal(r.dist_centro)}</span>` : ""}</p>
     <table class="indices">
       <thead><tr><th></th><th>Índice</th><th>IC 95%</th><th>n</th></tr></thead>
       <tbody>
@@ -279,4 +282,6 @@ function painelDeputado() {
 .ranking tr.selecionado { background: var(--theme-background-alt); outline: 2px solid #111; }
 .ranking .sub, .ranking .ic, .ranking .n { color: var(--theme-foreground-muted); }
 .ranking .valor { font-weight: 600; }
+.ranking .governo { white-space: nowrap; }
+.ranking .governo.poucos { color: var(--theme-foreground-muted); font-style: italic; }
 </style>
