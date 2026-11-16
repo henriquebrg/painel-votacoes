@@ -7,6 +7,11 @@ title: Metodologia
 Esta página explica, em linguagem simples, como cada número do painel é calculado. Os dados vêm dos arquivos abertos da Câmara dos Deputados e cobrem a 57ª legislatura (de 01/02/2023 a 31/01/2027).
 
 ```js
+import {carregarFonte} from "./components/fonte.js";
+carregarFonte();
+```
+
+```js
 const meta = FileAttachment("data/meta.json").json();
 const grupos = FileAttachment("data/grupos.json").json();
 ```

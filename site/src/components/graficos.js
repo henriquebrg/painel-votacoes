@@ -5,9 +5,15 @@ import {pct, rotuloGrupo, governoRanking, N_MIN, ROTULO_SEM_GRUPO} from "./forma
 
 export {pct, ROTULO_SEM_GRUPO};
 
-// Uma cor por grupo, a mesma em todas as páginas.
-export const CORES_GRUPO = {Base: "#2f6690", Independentes: "#c08a2d", "Oposição": "#b8483a"};
+// Uma cor por grupo, a mesma em todas as páginas: goiaba, mostarda e petróleo.
+// Validada para daltonismo (ΔE ≥ 8 entre todos os pares) com a skill de dataviz.
+// O mostarda tem contraste baixo contra o fundo: os grupos sempre levam rótulo escrito.
+export const CORES_GRUPO = {Base: "#e5576b", Independentes: "#c99418", "Oposição": "#00688f"};
 export const COR_SEM_GRUPO = "#9aa0a6";
+// Fundo da página (style.css), para o contorno dos rótulos sobre os pontos.
+const FUNDO = "#f5f6f4";
+// Ordem de leitura, da oposição à base (a mesma do eixo do governo).
+export const ORDEM_GRUPOS = ["Oposição", "Independentes", "Base"];
 
 // Uma cor por partido (os maiores); os demais em cinza.
 export const CORES_PARTIDO = {
@@ -47,7 +53,7 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
     ? grupos.centros.map(([gov, par], i) => ({alinh_gov: gov, [y]: par, rotulo: grupos.rotulos[i]}))
     : [];
   const rotulos = [
-    ...(grupos?.rotulos ?? Object.keys(CORES_GRUPO)),
+    ...ORDEM_GRUPOS.filter((g) => !grupos?.rotulos || grupos.rotulos.includes(g)),
     ...(pontos.some((r) => r.grupo == null) ? [ROTULO_SEM_GRUPO] : [])
   ];
   const opacidade = destaque == null ? 0.75 : 0.35;
@@ -59,7 +65,7 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
     marginBottom: 44,
     style: {fontSize: "12px"},
     x: {domain: [0, 1], tickFormat: pct, grid: true, label: "Alinhamento ao governo →", labelAnchor: "right"},
-    y: {domain: [0, 1], tickFormat: pct, grid: true, label: `↑ ${ROTULO_EIXO_PARTIDO[eixoPartido]}`},
+    y: {domain: [0, 1], ticks: 10, tickFormat: pct, grid: true, label: `↑ ${ROTULO_EIXO_PARTIDO[eixoPartido]}`},
     color: {
       domain: rotulos,
       range: rotulos.map((g) => CORES_GRUPO[g] ?? COR_SEM_GRUPO),
@@ -70,7 +76,7 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
       Plot.frame({stroke: "#ddd"}),
       Plot.dot(pontos, {
         x: "alinh_gov", y, fill: rotuloGrupo, r: 3.5,
-        fillOpacity: {value: (d) => (d.grupo == null ? opacidade * 0.4 : opacidade), scale: null}, stroke: "white", strokeWidth: 0.5
+        fillOpacity: {value: (d) => (d.grupo == null ? opacidade * 0.4 : opacidade), scale: null}, stroke: FUNDO, strokeWidth: 0.75
       }),
       Plot.line(trilha, {x: "alinh_gov", y, stroke: "#222", strokeWidth: 1.5, marker: "dot"}),
       // início do rastro; o fim coincide com o ponto destacado
@@ -80,12 +86,12 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
       Plot.dot(selecionado, {x: "alinh_gov", y, r: 7, stroke: "#111", strokeWidth: 2, fill: rotuloGrupo}),
       Plot.text(selecionado, {
         x: "alinh_gov", y, text: (d) => d.nome, dy: -14, fontWeight: 600, fill: "#111",
-        stroke: "white", strokeWidth: 3
+        stroke: FUNDO, strokeWidth: 3
       }),
       Plot.dot(centros, {x: "alinh_gov", y, r: 9, stroke: "black", strokeWidth: 1.5, fill: "none"}),
       Plot.text(centros, {
         x: "alinh_gov", y, text: "rotulo", dx: 13, textAnchor: "start", fontWeight: 600,
-        fill: "black", stroke: "white", strokeWidth: 3
+        fill: "black", stroke: FUNDO, strokeWidth: 3
       }),
       Plot.tip(pontos, Plot.pointer({
         x: "alinh_gov", y,
@@ -99,6 +105,64 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
       }))
     ]
   });
+}
+
+/**
+ * Régua do Plenário: um traço por deputado, do menos ao mais alinhado ao governo, cor pelo grupo.
+ * A posição é a ordem (não o valor), como as cadeiras de um placar: a régua mostra quantos
+ * deputados há em cada trecho do eixo. O valor do gráfico (`.value`) é o deputado sob o ponteiro.
+ */
+export function regua(rows, {destaque = null, width = 640, animar = false} = {}) {
+  const pontos = rows
+    .filter((r) => r.alinh_gov != null)
+    .sort((a, b) => a.alinh_gov - b.alinh_gov || a.nome.localeCompare(b.nome, "pt-BR"))
+    .map((r, i) => ({...r, pos: i}));
+  const n = pontos.length;
+  const passo = width / Math.max(n, 1);
+  const selecionado = pontos.filter((r) => destaque != null && String(r.deputado_id) === String(destaque));
+  const g = Plot.plot({
+    width,
+    height: 60,
+    marginTop: 4,
+    marginBottom: 2,
+    marginLeft: 1,
+    marginRight: 1,
+    x: {domain: [-0.5, Math.max(n, 1) - 0.5], axis: null},
+    y: {domain: [0, 1], axis: null},
+    marks: [
+      Plot.ruleX(pontos, {
+        x: "pos", y1: 0.08, y2: 1,
+        stroke: (d) => CORES_GRUPO[d.grupo] ?? COR_SEM_GRUPO,
+        strokeWidth: Math.max(1, passo - (passo > 3 ? 1 : 0.4))
+      }),
+      Plot.ruleX(selecionado, {x: "pos", y1: -0.02, y2: 1.1, stroke: "#1c2321", strokeWidth: Math.max(2, passo)}),
+      Plot.tip(pontos, Plot.pointerX({
+        x: "pos", y: 1, anchor: "bottom",
+        title: (d) => `${d.nome} (${d.partido}-${d.uf})\n${rotuloGrupo(d)} · governo ${pct(d.alinh_gov)}`
+      }))
+    ]
+  });
+  g.classList.add("regua");
+  if (animar) g.classList.add("animar");
+  g.setAttribute("aria-label", `Régua com ${n.toLocaleString("pt-BR")} deputados ordenados pelo alinhamento ao governo`);
+  return g;
+}
+
+/**
+ * Contagem de deputados por grupo, na ordem da régua; serve de legenda dela.
+ */
+export function contagemGrupos(rows) {
+  const conta = new Map();
+  for (const r of rows) {
+    if (r.alinh_gov == null) continue;
+    const g = r.grupo ?? ROTULO_SEM_GRUPO;
+    conta.set(g, (conta.get(g) ?? 0) + 1);
+  }
+  const ordem = [...ORDEM_GRUPOS, ROTULO_SEM_GRUPO].filter((g) => conta.has(g));
+  return html`<ul class="contagem">${ordem.map((g) => html`<li>
+    <span class="amostra" style=${`background:${CORES_GRUPO[g] ?? COR_SEM_GRUPO}`}></span>
+    <span class="grupo-nome">${g}</span> <strong>${conta.get(g).toLocaleString("pt-BR")}</strong>
+  </li>`)}</ul>`;
 }
 
 /**
@@ -135,11 +199,11 @@ export function mapaPosicoes(posicoes, rows, {destaque = null, variancia = null,
       Plot.frame({stroke: "#ddd"}),
       Plot.dot(pontos, {
         x: "dim1", y: "dim2", fill: (d) => (CORES_PARTIDO[d.partido] ? d.partido : "outro"), r: 3.5,
-        fillOpacity: destaque == null ? 0.8 : 0.35, stroke: "white", strokeWidth: 0.5
+        fillOpacity: destaque == null ? 0.8 : 0.35, stroke: FUNDO, strokeWidth: 0.75
       }),
       Plot.dot(selecionado, {x: "dim1", y: "dim2", r: 7, stroke: "#111", strokeWidth: 2, fill: (d) => corPartido(d.partido)}),
       Plot.text(selecionado, {
-        x: "dim1", y: "dim2", text: "nome", dy: -14, fontWeight: 600, fill: "#111", stroke: "white", strokeWidth: 3
+        x: "dim1", y: "dim2", text: "nome", dy: -14, fontWeight: 600, fill: "#111", stroke: FUNDO, strokeWidth: 3
       }),
       Plot.tip(pontos, Plot.pointer({x: "dim1", y: "dim2", title: (d) => `${d.nome} (${d.partido}-${d.uf})`}))
     ]
@@ -154,7 +218,6 @@ export function semOrientacao(rows, {partidos = PARTIDOS_SEM_ORIENTACAO, janela 
   const dados = rows.filter((r) => partidos.includes(r.partido) && r.taxa_sem_orientacao != null);
   const janelas = [...new Set(dados.map((r) => r.janela))].sort();
   return Plot.plot({
-    title: "Com que frequência cada partido deixou de orientar",
     width,
     height: 320,
     marginLeft: 44,
@@ -199,7 +262,7 @@ export function rankingDesgarrados(rows, {limite = 20, direcao = "todas", destaq
     <tbody>${linhas.map((r) => {
       const tr = html`<tr class=${String(r.deputado_id) === String(destaque) ? "selecionado" : ""} tabindex="0">
         <td class="n">${r.posicao_ranking}</td>
-        <td><strong>${r.nome}</strong> <span class="sub">(${r.partido}-${r.uf})</span></td>
+        <td><span class="nome-dep">${r.nome}</span> <span class="sub">(${r.partido}-${r.uf})</span></td>
         <td>${barraFidelidade(r)} <span class="valor">${pct(r.alinh_maioria)}</span></td>
         <td class="ic">${pct(r.ic_maioria_inf)} a ${pct(r.ic_maioria_sup)}</td>
         <td class=${(r.n_gov ?? 0) >= N_MIN ? "governo" : "governo poucos"}>${governoRanking(r)}</td>
