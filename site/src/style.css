@@ -51,6 +51,23 @@ a[href] { color: var(--verde); text-underline-offset: 0.15em; }
 
 :focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
 
+/* Termos com explicação (components/termos.js): sublinhado pontilhado e uma caixa escura. */
+.termo {
+  text-decoration: underline dotted color-mix(in srgb, var(--verde) 75%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.22em;
+  cursor: help;
+}
+.termo:hover { text-decoration-style: solid; }
+.explica {
+  position: fixed; z-index: 20; max-width: min(22rem, calc(100vw - 16px));
+  padding: 0.6rem 0.75rem; border-radius: 6px;
+  background: var(--theme-foreground); color: #fff;
+  font: 400 var(--t-1) / 1.45 var(--sans-serif); font-stretch: 100%;
+  box-shadow: 0 6px 20px rgb(28 35 33 / 0.2);
+  pointer-events: none;
+}
+
 /* Cabeçalho: nome do painel à esquerda, páginas à direita. */
 #observablehq-header {
   border-bottom: 3px solid var(--verde);

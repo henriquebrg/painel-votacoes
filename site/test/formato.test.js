@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {pct, faixaPct, rotuloGrupo, governoRanking, ROTULO_SEM_GRUPO} from "../src/components/formato.js";
+import {pct, faixaPct, rotuloGrupo, governoRanking, formatarJanela, ROTULO_SEM_GRUPO} from "../src/components/formato.js";
 
 test("pct mostra — para valores ausentes ou não finitos", () => {
   assert.equal(pct(0.725), "73%");
@@ -23,4 +23,9 @@ test("governoRanking mostra valor com IC, ou 'poucos votos' com n_gov < 30", () 
   assert.equal(governoRanking({...r, n_gov: 30}), "80% (70% a 87%)");
   assert.equal(governoRanking({...r, n_gov: 12}), "poucos votos (12)");
   assert.equal(governoRanking({...r, n_gov: null}), "poucos votos (0)");
+});
+
+test("formatarJanela escreve o trimestre por extenso", () => {
+  assert.equal(formatarJanela("2025T3"), "3º tri 2025");
+  assert.equal(formatarJanela("legislatura"), "legislatura");
 });

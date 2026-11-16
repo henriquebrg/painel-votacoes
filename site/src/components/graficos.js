@@ -1,7 +1,10 @@
 import * as Plot from "npm:@observablehq/plot";
 import {html, svg} from "npm:htl";
 import {ordenarRanking} from "./estado.js";
-import {pct, rotuloGrupo, governoRanking, N_MIN, ROTULO_SEM_GRUPO} from "./formato.js";
+import {pct, rotuloGrupo, governoRanking, formatarJanela, N_MIN, ROTULO_SEM_GRUPO} from "./formato.js";
+import {termo, partidoUf, legenda} from "./termos.js";
+import {EXPLICA, explicaGrupo} from "./explicacoes.js";
+import {nomePartido} from "./siglas.js";
 
 export {pct, ROTULO_SEM_GRUPO};
 
@@ -25,6 +28,23 @@ const corPartido = (p) => CORES_PARTIDO[p] ?? COR_OUTRO_PARTIDO;
 export const PARTIDOS_SEM_ORIENTACAO = ["PT", "PL", "PP", "UNIÃO", "PSD", "MDB", "REPUBLICANOS"];
 
 const num = (x) => (x ?? 0).toLocaleString("pt-BR");
+// "votou com o governo em 26% de 38 votações"
+const deVotacoes = (valor, n) => `${pct(valor)} de ${num(n)} ${n === 1 ? "votação" : "votações"}`;
+
+/** Legenda dos grupos, com a explicação de cada um. `comSemGrupo` acrescenta o cinza. */
+export function legendaGrupos(grupos, {comSemGrupo = true} = {}) {
+  const itens = ORDEM_GRUPOS.filter((g) => !grupos?.rotulos || grupos.rotulos.includes(g))
+    .map((g) => ({rotulo: g, cor: CORES_GRUPO[g], explicacao: explicaGrupo(g, grupos)}));
+  if (comSemGrupo) itens.push({rotulo: ROTULO_SEM_GRUPO, cor: COR_SEM_GRUPO, explicacao: EXPLICA.semGrupo});
+  return legenda(itens, {rotulo: "Grupos"});
+}
+
+/** Legenda de partidos, com o nome por extenso de cada sigla. */
+export function legendaPartidos(partidos, {outros = false} = {}) {
+  const itens = partidos.map((p) => ({rotulo: p, cor: corPartido(p), explicacao: nomePartido(p)}));
+  if (outros) itens.push({rotulo: "Outros", cor: COR_OUTRO_PARTIDO, explicacao: "Os demais partidos, todos em cinza."});
+  return legenda(itens, {rotulo: "Partidos"});
+}
 
 export const ROTULO_EIXO_PARTIDO = {
   maioria: "Alinhamento à maioria da bancada",
@@ -69,8 +89,7 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
     color: {
       domain: rotulos,
       range: rotulos.map((g) => CORES_GRUPO[g] ?? COR_SEM_GRUPO),
-      unknown: COR_SEM_GRUPO,
-      legend: true
+      unknown: COR_SEM_GRUPO
     },
     marks: [
       Plot.frame({stroke: "#ddd"}),
@@ -96,11 +115,11 @@ export function dispersao(rows, {grupos, rastro = [], eixoPartido = "maioria", d
       Plot.tip(pontos, Plot.pointer({
         x: "alinh_gov", y,
         title: (d) => [
-          `${d.nome} (${d.partido}-${d.uf})`,
-          rotuloGrupo(d),
-          `Governo: ${pct(d.alinh_gov)}`,
-          `Partido: ${pct(d[y])}`,
-          `n: ${num(d.n_gov)} votações com orientação do governo · ${num(d[nPartido])} para o partido`
+          `${d.nome} (${d.partido}-${d.uf}), ${nomePartido(d.partido)}`,
+          `Grupo: ${rotuloGrupo(d)}`,
+          `Votou com o governo em ${deVotacoes(d.alinh_gov, d.n_gov)}`,
+          `Votou com ${eixoPartido === "orientacao" ? "a orientação do partido" : "a maioria da bancada"} em ${deVotacoes(d[y], d[nPartido])}`,
+          "Clique para ver o caminho no tempo"
         ].join("\n")
       }))
     ]
@@ -138,7 +157,7 @@ export function regua(rows, {destaque = null, width = 640, animar = false} = {})
       Plot.ruleX(selecionado, {x: "pos", y1: -0.02, y2: 1.1, stroke: "#1c2321", strokeWidth: Math.max(2, passo)}),
       Plot.tip(pontos, Plot.pointerX({
         x: "pos", y: 1, anchor: "bottom",
-        title: (d) => `${d.nome} (${d.partido}-${d.uf})\n${rotuloGrupo(d)} · governo ${pct(d.alinh_gov)}`
+        title: (d) => `${d.nome} (${d.partido}-${d.uf})\nGrupo: ${rotuloGrupo(d)}\nVotou com o governo em ${deVotacoes(d.alinh_gov, d.n_gov)}`
       }))
     ]
   });
@@ -151,7 +170,7 @@ export function regua(rows, {destaque = null, width = 640, animar = false} = {})
 /**
  * Contagem de deputados por grupo, na ordem da régua; serve de legenda dela.
  */
-export function contagemGrupos(rows) {
+export function contagemGrupos(rows, grupos) {
   const conta = new Map();
   for (const r of rows) {
     if (r.alinh_gov == null) continue;
@@ -161,7 +180,7 @@ export function contagemGrupos(rows) {
   const ordem = [...ORDEM_GRUPOS, ROTULO_SEM_GRUPO].filter((g) => conta.has(g));
   return html`<ul class="contagem">${ordem.map((g) => html`<li>
     <span class="amostra" style=${`background:${CORES_GRUPO[g] ?? COR_SEM_GRUPO}`}></span>
-    <span class="grupo-nome">${g}</span> <strong>${conta.get(g).toLocaleString("pt-BR")}</strong>
+    ${termo(g, g === ROTULO_SEM_GRUPO ? EXPLICA.semGrupo : explicaGrupo(g, grupos))} <strong>${conta.get(g).toLocaleString("pt-BR")}</strong>
   </li>`)}</ul>`;
 }
 
@@ -181,9 +200,6 @@ export function mapaPosicoes(posicoes, rows, {destaque = null, variancia = null,
     });
   const selecionado = pontos.filter((p) => destaque != null && p.deputado_id === String(destaque));
   const partidos = Object.keys(CORES_PARTIDO);
-  const caption = variancia
-    ? `A dimensão 1 resume ${pct(variancia[0])} da variação dos votos; a dimensão 2, ${pct(variancia[1])}.`
-    : undefined;
 
   return Plot.plot({
     width,
@@ -191,10 +207,9 @@ export function mapaPosicoes(posicoes, rows, {destaque = null, variancia = null,
     marginLeft: 44,
     marginBottom: 44,
     style: {fontSize: "12px"},
-    caption,
-    x: {label: "Dimensão 1 (governo ↔ oposição)", labelAnchor: "center", ticks: 0, grid: false},
-    y: {label: "Dimensão 2", ticks: 0},
-    color: {domain: partidos, range: partidos.map(corPartido), unknown: COR_OUTRO_PARTIDO, legend: true},
+    x: {label: "← governo · Dimensão 1 · oposição →", labelAnchor: "center", ticks: 0, grid: false},
+    y: {label: "↑ Dimensão 2", ticks: 0},
+    color: {domain: partidos, range: partidos.map(corPartido), unknown: COR_OUTRO_PARTIDO},
     marks: [
       Plot.frame({stroke: "#ddd"}),
       Plot.dot(pontos, {
@@ -205,7 +220,10 @@ export function mapaPosicoes(posicoes, rows, {destaque = null, variancia = null,
       Plot.text(selecionado, {
         x: "dim1", y: "dim2", text: "nome", dy: -14, fontWeight: 600, fill: "#111", stroke: FUNDO, strokeWidth: 3
       }),
-      Plot.tip(pontos, Plot.pointer({x: "dim1", y: "dim2", title: (d) => `${d.nome} (${d.partido}-${d.uf})`}))
+      Plot.tip(pontos, Plot.pointer({
+        x: "dim1", y: "dim2",
+        title: (d) => `${d.nome} (${d.partido}-${d.uf})\n${nomePartido(d.partido)}\nPerto dele, quem vota de forma parecida`
+      }))
     ]
   });
 }
@@ -214,7 +232,7 @@ export function mapaPosicoes(posicoes, rows, {destaque = null, variancia = null,
  * Taxa de votações sem orientação do partido, por janela, uma linha por partido.
  * `rows`: registros de sem_orientacao.json já do modo desejado.
  */
-export function semOrientacao(rows, {partidos = PARTIDOS_SEM_ORIENTACAO, janela = null, width = 640} = {}) {
+export function semOrientacao(rows, {partidos = PARTIDOS_SEM_ORIENTACAO, janela = null, modo = "movel", width = 640} = {}) {
   const dados = rows.filter((r) => partidos.includes(r.partido) && r.taxa_sem_orientacao != null);
   const janelas = [...new Set(dados.map((r) => r.janela))].sort();
   return Plot.plot({
@@ -223,16 +241,17 @@ export function semOrientacao(rows, {partidos = PARTIDOS_SEM_ORIENTACAO, janela 
     marginLeft: 44,
     marginBottom: 40,
     style: {fontSize: "12px"},
-    x: {type: "point", domain: janelas, label: null, tickFormat: (j, i) => (janelas.length > 8 && i % 2 ? "" : j)},
+    // Só o 1º trimestre de cada ano leva rótulo; os demais ficam como marcas.
+    x: {type: "point", domain: janelas, label: null, tickFormat: (j) => (j.endsWith("T1") ? formatarJanela(j) : "")},
     y: {domain: [0, 1], tickFormat: pct, grid: true, label: "↑ Votações sem orientação"},
-    color: {domain: partidos, range: partidos.map(corPartido), legend: true},
+    color: {domain: partidos, range: partidos.map(corPartido)},
     marks: [
       Plot.ruleX(janela && janelas.includes(janela) ? [janela] : [], {stroke: "#999", strokeDasharray: "3,3"}),
       Plot.line(dados, {x: "janela", y: "taxa_sem_orientacao", stroke: "partido", strokeWidth: 1.8}),
       Plot.dot(dados, {x: "janela", y: "taxa_sem_orientacao", fill: "partido", r: 2}),
       Plot.tip(dados, Plot.pointerX({
         x: "janela", y: "taxa_sem_orientacao",
-        title: (d) => `${d.partido} · ${d.janela}\n${pct(d.taxa_sem_orientacao)} sem orientação (${num(d.n_sem_orientacao)} de ${num(d.n_votacoes)} votações)`
+        title: (d) => `${d.partido} (${nomePartido(d.partido)})\n${modo === "movel" ? "Nos 12 meses até o" : "No"} ${formatarJanela(d.janela)}\nNão orientou em ${pct(d.taxa_sem_orientacao)} das votações (${num(d.n_sem_orientacao)} de ${num(d.n_votacoes)})`
       }))
     ]
   });
@@ -242,7 +261,8 @@ export function semOrientacao(rows, {partidos = PARTIDOS_SEM_ORIENTACAO, janela 
 function barraFidelidade(r, largura = 140) {
   const x = (v) => 4 + v * (largura - 8);
   return svg`<svg width=${largura} height="14" viewBox="0 0 ${largura} 14" role="img"
-      aria-label=${`Fidelidade ${pct(r.alinh_maioria)}, IC ${pct(r.ic_maioria_inf)} a ${pct(r.ic_maioria_sup)}`}>
+      aria-label=${`Fidelidade ${pct(r.alinh_maioria)}, margem de erro de ${pct(r.ic_maioria_inf)} a ${pct(r.ic_maioria_sup)}`}>
+    <title>${`Fidelidade medida: ${pct(r.alinh_maioria)} (o ponto). Margem de erro: de ${pct(r.ic_maioria_inf)} a ${pct(r.ic_maioria_sup)} (a faixa cinza).`}</title>
     <line x1=${x(0)} x2=${x(1)} y1="7" y2="7" stroke="#e3e3e3" stroke-width="6" stroke-linecap="round"></line>
     <line x1=${x(r.ic_maioria_inf ?? 0)} x2=${x(r.ic_maioria_sup ?? 1)} y1="7" y2="7" stroke="#9aa0a6" stroke-width="6"></line>
     <circle cx=${x(r.alinh_maioria ?? 0)} cy="7" r="4" fill=${corPartido(r.partido)} stroke="#111" stroke-width="1"></circle>
@@ -258,11 +278,15 @@ export function rankingDesgarrados(rows, {limite = 20, direcao = "todas", destaq
   const linhas = ordenarRanking(rows, direcao).slice(0, limite);
   if (!linhas.length) return html`<p class="dica">Nenhum deputado elegível com estes filtros.</p>`;
   return html`<table class="ranking">
-    <thead><tr><th>#</th><th>Deputado</th><th>Fidelidade à bancada</th><th>IC 95%</th><th>Governo (IC 95%)</th><th>Direção</th></tr></thead>
+    <thead><tr>
+      <th>${termo("#", EXPLICA.ordemRanking)}</th><th>Deputado</th>
+      <th>${termo("Fidelidade à bancada", EXPLICA.fidelidade)}</th><th>${termo("IC 95%", EXPLICA.ic)}</th>
+      <th>${termo("Governo (IC 95%)", EXPLICA.governoRanking)}</th><th>${termo("Direção", EXPLICA.direcao)}</th>
+    </tr></thead>
     <tbody>${linhas.map((r) => {
       const tr = html`<tr class=${String(r.deputado_id) === String(destaque) ? "selecionado" : ""} tabindex="0">
         <td class="n">${r.posicao_ranking}</td>
-        <td><span class="nome-dep">${r.nome}</span> <span class="sub">(${r.partido}-${r.uf})</span></td>
+        <td><span class="nome-dep">${r.nome}</span> <span class="sub">(${partidoUf(r.partido, r.uf)})</span></td>
         <td>${barraFidelidade(r)} <span class="valor">${pct(r.alinh_maioria)}</span></td>
         <td class="ic">${pct(r.ic_maioria_inf)} a ${pct(r.ic_maioria_sup)}</td>
         <td class=${(r.n_gov ?? 0) >= N_MIN ? "governo" : "governo poucos"}>${governoRanking(r)}</td>

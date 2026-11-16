@@ -5,7 +5,7 @@ toc: false
 
 # Como votam os deputados
 
-<p class="lead">Cada traço é um deputado, do que menos vota com o governo ao que mais vota. A cor é o grupo em que os votos dele o colocam. Use os filtros para recortar por estado, partido ou grupo, e o trimestre para voltar no tempo.</p>
+<p class="lead">O quanto cada deputado federal acompanha o governo e o próprio partido nas votações do Plenário da Câmara, desde fevereiro de 2023. Comece pela régua abaixo e desça para ver cada deputado de perto. Os termos sublinhados explicam a si mesmos: passe o mouse ou toque neles.</p>
 
 ```js
 import {carregarFonte} from "./components/fonte.js";
@@ -15,7 +15,16 @@ carregarFonte();
 ```js
 import {lerEstado, escreverEstado, filtrar, rastro, DIRECOES} from "./components/estado.js";
 import {dispersao, mapaPosicoes, rankingDesgarrados, semOrientacao, regua, contagemGrupos, CORES_GRUPO, COR_SEM_GRUPO, ROTULO_EIXO_PARTIDO, pct} from "./components/graficos.js";
-import {rotuloGrupo} from "./components/formato.js";
+import {rotuloGrupo, formatarJanela} from "./components/formato.js";
+import {termo, partidoUf, iniciarTermos} from "./components/termos.js";
+import {legendaGrupos, legendaPartidos, CORES_PARTIDO, PARTIDOS_SEM_ORIENTACAO} from "./components/graficos.js";
+import {EXPLICA, explicaGrupo, explicaDimensao} from "./components/explicacoes.js";
+import {nomePartido, nomeUf} from "./components/siglas.js";
+```
+
+```js
+// Caixa de explicação dos termos sublinhados: uma para a página toda.
+invalidation.then(iniciarTermos());
 ```
 
 ```js
@@ -37,20 +46,20 @@ const naUrl = () => lerEstado(location.search);
 ```js
 const ROTULO_MODO = {movel: "Últimos 12 meses", trimestre: "Só o trimestre", legislatura: "Legislatura inteira"};
 const REGIOES = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"];
-const formatarJanela = (j) => (/^\d{4}T\d$/.test(j) ? `${j.slice(5)}º tri ${j.slice(0, 4)}` : j);
 const decimal = (x) => (x == null ? "—" : x.toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}));
 const ordenar = (xs) => [...xs].sort((a, b) => a.localeCompare(b, "pt-BR"));
 const opcoes = (rows, campo) => ordenar(new Set(rows.map((r) => r[campo]).filter(Boolean)));
 
 // Filtro de múltipla escolha compacto: um botão que abre uma lista de caixas de marcar.
 // O valor é a lista marcada (vazia = sem filtro), como no Inputs.select múltiplo que substitui.
-function filtroMultiplo(rotulo, opts, valorInicial) {
+function filtroMultiplo(rotulo, opts, valorInicial, explicar = () => null) {
   const marcados = new Set(valorInicial.filter((v) => opts.includes(v)));
   const resumo = html`<span class="filtro-resumo"></span>`;
   const caixas = opts.map((o) => {
     const cb = html`<input type="checkbox" value=${o}>`;
     cb.checked = marcados.has(o);
-    return html`<label>${cb}<span>${o}</span></label>`;
+    const nome = explicar(o);
+    return html`<label>${cb}${nome ? html`<span class="termo" data-explica=${nome} aria-label=${`${o}: ${nome}`}>${o}</span>` : html`<span>${o}</span>`}</label>`;
   });
   const limpar = html`<button type="button" class="filtro-limpar">Limpar</button>`;
   const el = html`<details class="filtro">
@@ -87,7 +96,7 @@ function seletorJanela(janelas, valorInicial) {
   const faixa = html`<input type="range" min="0" max=${janelas.length - 1} step="1" aria-label="Trimestre">`;
   const rotulo = html`<output></output>`;
   const botao = html`<button type="button" class="tocar" aria-label="Percorrer os trimestres">▶</button>`;
-  const el = html`<div class="seletor-janela">${botao}${faixa}${rotulo}</div>`;
+  const el = html`<div class="seletor-janela"><span class="rotulo-controle">${termo("Trimestre", EXPLICA.trimestre)}</span>${botao}${faixa}${rotulo}</div>`;
   const mostrar = () => { faixa.value = i; rotulo.textContent = formatarJanela(janelas[i]); el.value = janelas[i]; };
   const definir = (k) => { i = k; mostrar(); el.dispatchEvent(new Event("input", {bubbles: true})); };
   el.parar = () => { clearInterval(relogio); relogio = null; botao.textContent = "▶"; botao.setAttribute("aria-label", "Percorrer os trimestres"); };
@@ -114,17 +123,17 @@ invalidation.then(() => document.removeEventListener("click", fecharFiltros));
 ```
 
 ```js
-const modoInput = Inputs.select(Object.keys(ROTULO_MODO), {label: "Período", value: inicial.modo, format: (m) => ROTULO_MODO[m]});
+const modoInput = Inputs.select(Object.keys(ROTULO_MODO), {label: termo("Período", EXPLICA.periodo), value: inicial.modo, format: (m) => ROTULO_MODO[m]});
 const modo = Generators.input(modoInput);
 const seletor = seletorJanela(meta.janelas, inicial.janela);
 const janela = Generators.input(seletor);
 invalidation.then(() => seletor.parar());
 const regioesInput = filtroMultiplo("Região", REGIOES, inicial.regioes);
 const regioes = Generators.input(regioesInput);
-const gruposInput = filtroMultiplo("Grupo", grupos.rotulos, inicial.grupos);
+const gruposInput = filtroMultiplo("Grupo", grupos.rotulos, inicial.grupos, (g) => explicaGrupo(g, grupos));
 const gruposSel = Generators.input(gruposInput);
 const eixoInput = Inputs.select(Object.keys(ROTULO_EIXO_PARTIDO), {
-  label: "Eixo vertical", value: inicial.eixoPartido,
+  label: termo("Eixo vertical", "O que a altura do ponto mede. Maioria da bancada (padrão): se o deputado vota junto com a maioria dos colegas de partido. Orientação do partido: se ele segue a indicação do líder, que nem sempre existe."), value: inicial.eixoPartido,
   format: (e) => (e === "maioria" ? "Maioria da bancada" : "Orientação do partido")
 });
 const eixoPartido = Generators.input(eixoInput);
@@ -142,9 +151,9 @@ const indices = ARQUIVOS_INDICES[modo].json();
 ```
 
 ```js
-const ufsInput = filtroMultiplo("UF", opcoes(indices, "uf"), naUrl().ufs);
+const ufsInput = filtroMultiplo("Estado", opcoes(indices, "uf"), naUrl().ufs, nomeUf);
 const ufs = Generators.input(ufsInput);
-const partidosInput = filtroMultiplo("Partido", opcoes(indices, "partido"), naUrl().partidos);
+const partidosInput = filtroMultiplo("Partido", opcoes(indices, "partido"), naUrl().partidos, (p) => (nomePartido(p) === p ? null : nomePartido(p)));
 const partidos = Generators.input(partidosInput);
 ```
 
@@ -180,7 +189,9 @@ copiar.onclick = async () => {
 };
 ```
 
-<section class="placar" aria-label="Deputados por grupo">
+<section class="placar" aria-labelledby="titulo-placar">
+  <h2 id="titulo-placar">Onde cada deputado está</h2>
+  <p class="subtitulo">Cada traço vertical é um deputado. Eles estão em fila, do que menos segue a ${termo("orientação do governo", EXPLICA.orientacaoGoverno)} (à esquerda) ao que mais segue (à direita). A cor mostra o grupo em que os votos o colocam. Passe o mouse na régua para ver quem é cada traço, e sobre o nome de um grupo para saber quem está nele.</p>
   <p class="placar-titulo"><strong>${visiveis.length.toLocaleString("pt-BR")}</strong> deputados, ${legislatura ? "na legislatura inteira" : modo === "movel" ? `nos 12 meses até o ${formatarJanela(janela)}` : `no ${formatarJanela(janela)}`}</p>
   ${resize((width) => {
     const g = regua(visiveis, {destaque: deputado, width, animar: !reguaAnimada.feito});
@@ -189,7 +200,7 @@ copiar.onclick = async () => {
     return g;
   })}
   <div class="regua-pontas" aria-hidden="true"><span>← vota menos com o governo</span><span>vota mais com o governo →</span></div>
-  ${contagemGrupos(visiveis)}
+  ${contagemGrupos(visiveis, grupos)}
 </section>
 
 <div class="barra-filtros">
@@ -200,10 +211,11 @@ copiar.onclick = async () => {
 
 <section class="secao">
   <h2>Com o governo e com a própria bancada</h2>
-  <p class="dica">Cada ponto é um deputado. Para a direita, vota mais com a orientação do governo; para cima, mais com a sua bancada. Os anéis marcam o centro de cada grupo. Clique num ponto para ver o deputado e o caminho dele no tempo.</p>
+  <p class="subtitulo">Cada ponto é um deputado. Quanto mais à direita, mais ele segue a ${termo("orientação do governo", EXPLICA.orientacaoGoverno)}; quanto mais acima, mais vota junto com ${eixoPartido === "orientacao" ? termo("a orientação do próprio partido", EXPLICA.orientacaoPartido) : termo("a maioria da própria bancada", EXPLICA.maioriaBancada)}. No alto à direita fica quem apoia o governo junto com o partido; no alto à esquerda, a oposição coesa; mais abaixo, quem se descola do próprio partido.${eixoPartido === "maioria" ? " Os anéis marcam o deputado típico de cada grupo." : ""} Clique num ponto para ver o deputado e o caminho dele no tempo.</p>
   <div class="grid grid-cols-3 explorar">
     <div class="grid-colspan-2">
       ${eixoInput}
+      ${legendaGrupos(grupos, {comSemGrupo: visiveis.some((r) => r.grupo == null)})}
       ${resize((width) => {
         const g = dispersao(visiveis, {grupos, rastro: trilha, eixoPartido, destaque: deputado, width});
         g.addEventListener("click", () => g.value && selecionar(g.value.deputado_id));
@@ -217,13 +229,13 @@ copiar.onclick = async () => {
 
 ```js
 // Célula própria: o filtro de direção não volta a "todas" quando a janela muda.
-const direcaoInput = Inputs.radio(DIRECOES, {label: "Direção", value: "todas"});
+const direcaoInput = Inputs.radio(DIRECOES, {label: termo("Direção", EXPLICA.direcao), value: "todas"});
 const direcao = Generators.input(direcaoInput);
 ```
 
 <section class="secao ranking-secao">
   <h2>Desgarrados: quem mais se afasta da própria bancada</h2>
-  <p class="dica">Fidelidade é a parcela das votações em que o deputado votou com a maioria dos colegas de partido. A faixa cinza é o intervalo de 95%. Só entram deputados com ao menos 30 votações contadas. Clique numa linha para destacar o deputado.</p>
+  <p class="subtitulo">Os 20 deputados que mais votam diferente da maioria do próprio partido, no período e nos filtros escolhidos. Cada barra vai de 0% a 100% de ${termo("fidelidade à bancada", EXPLICA.fidelidade)}: o ponto é o valor medido e a faixa cinza, a ${termo("margem de erro", EXPLICA.ic)}, mais larga para quem tem poucos votos. A coluna ${termo("Direção", EXPLICA.direcao)} diz se o deputado se afasta do partido rumo ao governo ou rumo à oposição. Só entram deputados com ao menos 30 votações contadas. Clique numa linha para ver o deputado no gráfico.</p>
   ${direcaoInput}
   <div class="tabela-rolavel">${rankingDesgarrados(visiveis, {limite: 20, direcao, destaque: deputado, aoSelecionar: selecionar})}</div>
 </section>
@@ -251,7 +263,8 @@ const serieSemOrientacao = semOrientacaoRows.filter((r) => r.modo === modoSemOri
 <div class="grid grid-cols-2 explorar secao">
   <section>
     <h2>Mapa de posições</h2>
-    <p class="dica">Usa todos os votos, sem olhar orientações: deputados que votam de forma parecida ficam perto. A cor é o partido.</p>
+    <p class="subtitulo">Aqui não entram orientações, só os votos: deputados que votam de forma parecida ficam perto uns dos outros. Na horizontal, a ${termo("dimensão 1", explicaDimensao(0, mapa.variancia[janelaMapa]))} separa governo (à esquerda) e oposição (à direita); na vertical, a ${termo("dimensão 2", explicaDimensao(1, mapa.variancia[janelaMapa]))} mostra diferenças menores. A cor é o partido. Serve para conferir os grupos por outro caminho (${termo("como o mapa é feito", EXPLICA.mapa)}).</p>
+    ${legendaPartidos(Object.keys(CORES_PARTIDO), {outros: true})}
     ${posicoesMapa.length ? resize((width) => {
       const g = mapaPosicoes(posicoesMapa, visiveis, {destaque: deputado, variancia: mapa.variancia[janelaMapa], width});
       g.addEventListener("click", () => g.value && selecionar(g.value.deputado_id));
@@ -261,8 +274,9 @@ const serieSemOrientacao = semOrientacaoRows.filter((r) => r.modo === modoSemOri
   </section>
   <section>
     <h2>Quando os partidos deixam de orientar</h2>
-    <p class="dica">Parcela das votações em que o partido não deu orientação à bancada. Quanto mais alta, menos dá para medir fidelidade pela orientação.</p>
-    ${resize((width) => semOrientacao(serieSemOrientacao, {janela: legislatura ? null : janela, width}))}
+    <p class="subtitulo">Cada linha é um partido. A altura mostra em que parcela das votações o partido ${termo("não orientou", EXPLICA.semOrientacao)} a bancada, embora o governo tenha orientado. Quando a linha sobe, como em 2025, fica difícil medir fidelidade pela orientação do partido; por isso o painel usa a maioria da bancada como padrão. A linha tracejada marca o trimestre escolhido.</p>
+    ${legendaPartidos(PARTIDOS_SEM_ORIENTACAO)}
+    ${resize((width) => semOrientacao(serieSemOrientacao, {janela: legislatura ? null : janela, modo: modoSemOrientacao, width}))}
     ${legislatura ? html`<p class="nota">Na legislatura inteira, a série mostra janelas de 12 meses.</p>` : ""}
   </section>
 </div>
@@ -296,18 +310,19 @@ function painelDeputado() {
   }
   const cor = CORES_GRUPO[r.grupo] ?? COR_SEM_GRUPO;
   return html`<h3 class="nome">${r.nome}</h3>
-    <p class="sub">${r.partido}-${r.uf}, ${r.regiao}</p>
-    <p class="grupo"><span class="amostra" style="background:${cor}"></span><strong>${rotuloGrupo(r)}</strong>
-      ${r.grupo ? html`<span class="dist">distância ao centro do grupo: ${decimal(r.dist_centro)}</span>` : ""}</p>
+    <p class="sub">${partidoUf(r.partido, r.uf)}, ${r.regiao}</p>
+    <p class="grupo"><span class="amostra" style="background:${cor}"></span><strong>${r.grupo ? termo(r.grupo, explicaGrupo(r.grupo, grupos)) : termo(rotuloGrupo(r), EXPLICA.semGrupo)}</strong>
+      ${r.grupo ? html`<span class="dist">${termo("distância ao centro do grupo", EXPLICA.distancia)}: ${decimal(r.dist_centro)}</span>` : ""}</p>
+    <p class="subtitulo">Em que parcela das votações contadas ele votou igual a cada referência.${r.alinh_gov != null ? ` Por exemplo: seguiu a orientação do governo em ${pct(r.alinh_gov)} das ${(r.n_gov ?? 0).toLocaleString("pt-BR")} votações em que o governo orientou.` : ""}</p>
     <table class="indices">
-      <thead><tr><th><span class="sr">Alinhamento a</span></th><th>Índice</th><th>IC 95%</th><th>n</th></tr></thead>
+      <thead><tr><th>Votou igual a</th><th>%</th><th>${termo("IC 95%", EXPLICA.ic)}</th><th>${termo("n", EXPLICA.n)}</th></tr></thead>
       <tbody>
-        ${linhaIndice("Governo", r.alinh_gov, r.ic_gov_inf, r.ic_gov_sup, r.n_gov)}
-        ${linhaIndice("Maioria da bancada", r.alinh_maioria, r.ic_maioria_inf, r.ic_maioria_sup, r.n_maioria)}
-        ${linhaIndice("Orientação do partido", r.alinh_par, r.ic_par_inf, r.ic_par_sup, r.n_par)}
+        ${linhaIndice(termo("Governo", EXPLICA.orientacaoGoverno), r.alinh_gov, r.ic_gov_inf, r.ic_gov_sup, r.n_gov)}
+        ${linhaIndice(termo("Maioria da bancada", EXPLICA.maioriaBancada), r.alinh_maioria, r.ic_maioria_inf, r.ic_maioria_sup, r.n_maioria)}
+        ${linhaIndice(termo("Orientação do partido", EXPLICA.orientacaoPartido), r.alinh_par, r.ic_par_inf, r.ic_par_sup, r.n_par)}
       </tbody>
     </table>
-    <p class="fora">Fora da conta: ${(r.n_artigo17 ?? 0).toLocaleString("pt-BR")} votos “Artigo 17” e ${(r.n_branco ?? 0).toLocaleString("pt-BR")} em branco.</p>
+    <p class="fora">Fora da conta: ${(r.n_artigo17 ?? 0).toLocaleString("pt-BR")} votos ${termo("“Artigo 17”", EXPLICA.artigo17)} e ${(r.n_branco ?? 0).toLocaleString("pt-BR")} ${termo("em branco", EXPLICA.branco)}.</p>
     ${trilha.length > 1 ? html`<p class="dica">A linha no gráfico mostra o caminho de ${formatarJanela(trilha[0].janela)} a ${formatarJanela(trilha.at(-1).janela)}.</p>` : ""}
     ${limpar}`;
 }
@@ -316,6 +331,12 @@ function painelDeputado() {
 <style>
 .lead { max-width: 62ch; color: var(--theme-foreground-muted); font-size: var(--t-3); line-height: 1.4; margin: 0 0 2rem; }
 .dica, .nota { color: var(--theme-foreground-muted); font-size: var(--t-1); max-width: 72ch; }
+.subtitulo { color: var(--theme-foreground-alt); font-size: var(--t-2); line-height: 1.5; max-width: 70ch; margin: 0 0 1rem; }
+.placar h2 { margin: 0 0 0.25rem; }
+.legenda { list-style: none; padding: 0; margin: 0 0 0.5rem; display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; font-size: var(--t-0); max-width: none; }
+.legenda li { display: flex; align-items: center; gap: 0.35rem; }
+.rotulo-controle { margin-right: 0.15rem; }
+.painel-deputado .subtitulo { font-size: var(--t-1); color: var(--theme-foreground-muted); margin: 0.5rem 0; }
 .nota { font-size: var(--t-0); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -378,8 +399,10 @@ function painelDeputado() {
 /* Seções sem moldura: o espaço separa. */
 .secao { margin: 0 0 3.5rem; }
 .secao h2 { margin: 0 0 0.25rem; }
-.secao .dica { margin: 0 0 1rem; }
-.explorar section > h2 + .dica { min-height: 3em; }
+.secao .dica, .secao .subtitulo { margin: 0 0 1rem; }
+.explorar section > h2 + .subtitulo { min-height: 7.5em; }
+/* O grid do Framework iguala a altura das linhas; aqui cada linha tem a altura do seu conteúdo. */
+.grid.explorar { grid-auto-rows: auto; }
 .explorar form { margin-bottom: 0.25rem; }
 
 .painel-deputado { border-left: 3px solid var(--linha); padding-left: 1.25rem; font-size: var(--t-1); align-self: start; }
@@ -409,7 +432,14 @@ function painelDeputado() {
 .ranking .governo.poucos { color: var(--theme-foreground-muted); font-style: italic; }
 
 @media (max-width: 640px) {
-  .barra-filtros { position: static; }
+  .barra-filtros { position: relative; }
+  .filtros-tempo, .seletor-janela { width: 100%; }
+  .seletor-janela input[type=range] { flex: 1 1 6rem; width: auto; min-width: 0; }
+  .seletor-janela output { min-width: 0; }
+  .explorar section > h2 + .subtitulo { min-height: 0; }
+  /* O menu do filtro abre na largura da faixa, e não rente ao botão (que pode estar na borda). */
+  .filtro { position: static; }
+  .filtro-painel { left: 0; right: 0; min-width: 0; max-width: none; }
   .barra-filtros .botao { margin-left: 0; }
   .painel-deputado { border-left: 0; border-top: 3px solid var(--linha); padding: 1rem 0 0; }
 }

@@ -16,3 +16,6 @@ export const governoRanking = (r) =>
   (r.n_gov ?? 0) >= N_MIN
     ? `${pct(r.alinh_gov)} (${pct(r.ic_gov_inf)} a ${pct(r.ic_gov_sup)})`
     : `poucos votos (${(r.n_gov ?? 0).toLocaleString("pt-BR")})`;
+
+// "2025T3" -> "3º tri 2025"; outros valores (ex.: "legislatura") voltam como vieram.
+export const formatarJanela = (j) => (/^\d{4}T\d$/.test(j) ? `${j.slice(5)}º tri ${j.slice(0, 4)}` : j);
